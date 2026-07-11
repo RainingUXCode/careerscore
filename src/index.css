@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+@theme {
+  /* Tema "CareerScore Dashboard" — navy escuro + teal, no espírito de um
+     relatório de análise de carreira (dark tech dashboard). */
+  --color-canvas: #0F172A;         /* fundo da página */
+  --color-canvas-raised: #1E293B;  /* cards */
+  --color-well: #0F172A;           /* blocos aninhados dentro de cards */
+  --color-ink: #F8FAFC;            /* texto principal */
+  --color-ink-soft: #CBD5E1;       /* texto secundário */
+  --color-muted: #94A3B8;          /* texto terciário / legendas */
+  --color-line: #334155;           /* bordas */
+  --color-line-soft: #243247;      /* divisores sutis */
+
+  --color-primary: #14B8A6;
+  --color-primary-dark: #0D9488;
+  --color-primary-bright: #5EEAD4;  /* acento claro para texto/links sobre fundo escuro */
+  --color-primary-soft: rgba(20, 184, 166, 0.14);
+
+  --color-score-high: #22C55E;
+  --color-score-high-soft: rgba(34, 197, 94, 0.14);
+  --color-score-mid: #F59E0B;
+  --color-score-mid-soft: rgba(245, 158, 11, 0.14);
+  --color-score-low: #EF4444;
+  --color-score-low-soft: rgba(239, 68, 68, 0.14);
+
+  --font-display: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+html {
+  background: var(--color-canvas);
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+::selection {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+/* -------------------------------------------------------------------------
+   Exportação do relatório em PDF (via window.print()).
+   `.print-reveal` é usado tanto pelas abas do relatório (Perfil/Vagas/Plano)
+   quanto pelo painel expansível de cada vaga: na tela, só a aba/painel ativo
+   fica visível; na impressão, tudo aparece, para o PDF sair completo.
+   ------------------------------------------------------------------------- */
+.print-reveal[data-active='false'] {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+
+  html,
+  body {
+    background: var(--color-canvas) !important;
+  }
+
+  /* Preserva cores e contraste do tema escuro no PDF gerado — sem isso, a
+     maioria dos navegadores ignora cores de fundo ao imprimir. */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  .print-reveal {
+    display: block !important;
+  }
+
+  /* Evita que o cabeçalho fixo e cards "flutuem" fora do fluxo normal na página impressa. */
+  nav {
+    position: static !important;
+    backdrop-filter: none !important;
+  }
+
+  /* Evita quebrar um card no meio entre duas páginas quando possível. */
+  .rounded-2xl,
+  .rounded-xl {
+    break-inside: avoid;
+  }
+
+  /* Modo dedicado: exportar apenas o currículo ATS otimizado (ver exportService). */
+  body[data-modo-impressao='curriculo'] header,
+  body[data-modo-impressao='curriculo'] nav {
+    display: none !important;
+  }
+
+  body[data-modo-impressao='curriculo'] .print-reveal:not(.curriculo-tab) {
+    display: none !important;
+  }
+
+  body[data-modo-impressao='curriculo'] main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}
