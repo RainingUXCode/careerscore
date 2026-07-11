@@ -29,6 +29,7 @@ export class JSearchJobProvider implements JobProvider {
     if (filtros.cidade) params.set('cidade', filtros.cidade)
     if (filtros.estado) params.set('estado', filtros.estado)
     if (filtros.pais) params.set('pais', filtros.pais)
+    if (filtros.modalidade) params.set('modalidade', filtros.modalidade)
     params.set('pagina', '1')
 
     try {

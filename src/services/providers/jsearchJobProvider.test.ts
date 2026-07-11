@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { JSearchJobProvider } from './jsearchJobProvider'
+import { Modalidade } from '../../types/enums'
 
 describe('JSearchJobProvider', () => {
   afterEach(() => {
@@ -70,5 +71,31 @@ describe('JSearchJobProvider', () => {
     const resultado = await provider.buscar({})
     expect(resultado.sucesso).toBe(false)
     expect(resultado.vagas).toEqual([])
+  })
+  it('envia os filtros recebidos para a rota /api/vagas', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ vagas: [], pagina: 1 }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const provider = new JSearchJobProvider()
+    await provider.buscar({
+      areaId: 'tecnologia',
+      cargo: 'Desenvolvedor Front-end',
+      cidade: 'SÃ£o Paulo',
+      estado: 'SP',
+      pais: 'Brasil',
+      modalidade: Modalidade.REMOTO,
+    })
+
+    const url = new URL(fetchMock.mock.calls[0][0], 'https://careerscore.test')
+    expect(url.pathname).toBe('/api/vagas')
+    expect(url.searchParams.get('area')).toBe('tecnologia')
+    expect(url.searchParams.get('cargo')).toBe('Desenvolvedor Front-end')
+    expect(url.searchParams.get('cidade')).toBe('SÃ£o Paulo')
+    expect(url.searchParams.get('estado')).toBe('SP')
+    expect(url.searchParams.get('pais')).toBe('Brasil')
+    expect(url.searchParams.get('modalidade')).toBe('Remoto')
   })
 })

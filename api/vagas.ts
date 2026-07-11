@@ -1,5 +1,5 @@
 import { normalizarVagaJSearch } from '../src/services/normalizers/jSearchJobNormalizer'
-import type { JSearchSearchResponse } from '../src/services/providers/jsearch/types'
+import type { JSearchRawJob, JSearchSearchResponse } from '../src/services/providers/jsearch/types'
 import type { VagaNormalizada } from '../src/types/vaga'
 import { obterAreaPorId } from '../src/data/areasProfissionais'
 
@@ -37,6 +37,13 @@ function sanitizarTexto(valor: string | null, tamanhoMaximo = 80): string | unde
   return limpo.length > 0 ? limpo : undefined
 }
 
+function extrairVagasBrutas(corpo: JSearchSearchResponse): JSearchRawJob[] | null {
+  if (corpo.status !== 'OK') return null
+  if (Array.isArray(corpo.data)) return corpo.data
+  if (corpo.data && typeof corpo.data === 'object' && Array.isArray(corpo.data.jobs)) return corpo.data.jobs
+  return null
+}
+
 export default async function handler(request: Request): Promise<Response> {
   if (request.method !== 'GET') {
     return respostaErro('metodo_nao_permitido', 'Use GET.', 405)
@@ -67,6 +74,9 @@ export default async function handler(request: Request): Promise<Response> {
     num_pages: '1',
     country: pais.toLowerCase().startsWith('bras') ? 'br' : pais.slice(0, 2).toLowerCase(),
   })
+  if (url.searchParams.get('modalidade') === 'Remoto') {
+    params.set('work_from_home', 'true')
+  }
 
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
@@ -102,13 +112,14 @@ export default async function handler(request: Request): Promise<Response> {
     return respostaErro('resposta_invalida', 'A fonte real de vagas retornou uma resposta inválida.', 502)
   }
 
-  if (corpo.status !== 'OK' || !Array.isArray(corpo.data)) {
+  const vagasBrutas = extrairVagasBrutas(corpo)
+  if (!vagasBrutas) {
     return respostaErro('resposta_invalida', 'A fonte real de vagas não retornou resultados utilizáveis.', 502)
   }
 
   let vagas: VagaNormalizada[] = []
   try {
-    vagas = corpo.data.slice(0, LIMITE_MAXIMO_RESULTADOS).map(normalizarVagaJSearch)
+    vagas = vagasBrutas.slice(0, LIMITE_MAXIMO_RESULTADOS).map(normalizarVagaJSearch)
     if (estado) {
       vagas = vagas.filter(
         (vaga) => !vaga.localizacao.estado || vaga.localizacao.estado.toLowerCase().includes(estado.toLowerCase()),

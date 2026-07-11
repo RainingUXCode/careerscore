@@ -63,10 +63,15 @@ export interface JSearchRawJob {
   } | null
 }
 
+export interface JSearchJobsData {
+  jobs?: JSearchRawJob[]
+  cursor?: string
+}
+
 export interface JSearchSearchResponse {
   status: 'OK' | 'ERROR'
   request_id?: string
   parameters?: Record<string, unknown>
-  data?: JSearchRawJob[]
+  data?: JSearchRawJob[] | JSearchJobsData
   error?: { message: string; code: number }
 }
