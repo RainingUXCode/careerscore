@@ -9,6 +9,7 @@ import { analisarExperienciasAnteriores, detectarOrigensTransferiveis } from '..
 import { normalizarTexto } from '../../utils/texto'
 import { calcularDuracaoMeses } from '../../utils/formatters'
 import { pesosCompatibilidade } from '../../config/pesosCompatibilidade'
+import { contratosEfetivosDaOpcao } from '../objetivoContratoService'
 
 function baseDimensao(chave: string, nome: string, peso: number): Omit<DimensaoCompatibilidade, 'avaliada' | 'confianca' | 'justificativa'> {
   return {
@@ -641,7 +642,7 @@ export function avaliarModalidade(candidato: Candidato, vaga: VagaNormalizada): 
 // ---------------------------------------------------------------------------
 export function avaliarTipoContrato(candidato: Candidato, vaga: VagaNormalizada): DimensaoCompatibilidade {
   const objetivo = candidato.objetivoProfissional
-  const preferidos = objetivo?.modo === 'definido' ? (objetivo.opcoes[0]?.tiposContratoAceitos ?? []) : []
+  const preferidos = objetivo?.modo === 'definido' ? contratosEfetivosDaOpcao(objetivo.opcoes[0]) : []
   if (!vaga.tipoContrato || preferidos.length === 0 || preferidos.includes('Indiferente')) {
     return naoAvaliada(
       'tipo_contrato',

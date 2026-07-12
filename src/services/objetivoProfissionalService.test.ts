@@ -75,6 +75,42 @@ describe('objetivo profissional', () => {
     expect(candidato.objetivoProfissional.opcoes[0].cargoOuArea).toBe('RH')
   })
 
+  it('nao exige contratos quando nivel infere contratação', () => {
+    const candidato = criarCandidatoBase({
+      objetivoProfissional: {
+        modo: 'definido',
+        opcoes: [{
+          id: '1',
+          cargoOuArea: 'Estágio em Dados',
+          nivelAlvo: 'Estágio',
+          tiposContratoAceitos: [],
+          modalidadesAceitas: [Modalidade.REMOTO],
+        }],
+      },
+    })
+
+    const erros = validationService.validarObjetivoProfissional(candidato)
+    expect(erros.contratos_0).toBeUndefined()
+  })
+
+  it('continua exigindo contratos quando nivel nao infere contratação', () => {
+    const candidato = criarCandidatoBase()
+    candidato.objetivoProfissional = {
+      ...objetivoProfissionalPadrao,
+      modo: 'definido',
+      opcoes: [{
+        id: '1',
+        cargoOuArea: 'Desenvolvedor Júnior',
+        nivelAlvo: 'Júnior',
+        tiposContratoAceitos: [],
+        modalidadesAceitas: [Modalidade.REMOTO],
+      }],
+    }
+
+    const erros = validationService.validarObjetivoProfissional(candidato)
+    expect(erros.contratos_0).toBeDefined()
+  })
+
   it('migra rascunho antigo sem objetivo sem apagar dados existentes', () => {
     const storage = localStorageMemoria()
     storage.setItem(

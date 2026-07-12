@@ -9,6 +9,7 @@ import { Modalidade } from '../../types/enums'
 import { Input } from '../ui/Input'
 import { Select } from '../ui/Select'
 import type { ErrosValidacao } from '../../services/validationService'
+import { contratosAoAlterarNivel, contratosVisiveisParaNivel } from '../../services/objetivoContratoService'
 
 interface Props {
   candidato: Candidato
@@ -31,7 +32,7 @@ const niveis: NivelSenioridadeAlvo[] = [
   'Indiferente',
 ]
 
-const contratos: TipoContratoAceito[] = ['Estágio', 'Aprendiz', 'Trainee', 'CLT', 'PJ', 'Temporário', 'Freelance', 'Cooperado', 'Indiferente']
+const contratos: TipoContratoAceito[] = ['CLT', 'PJ', 'Temporário', 'Freelance', 'Cooperado', 'Indiferente']
 const modalidades = [Modalidade.REMOTO, Modalidade.HIBRIDO, Modalidade.PRESENCIAL]
 
 function separarLista(valor: string): string[] {
@@ -108,6 +109,14 @@ export function ObjetivoProfissionalSection({ candidato, atualizarCampo, erros }
     atualizarOpcao(indice, { tiposContratoAceitos: contrato === 'Indiferente' ? ['Indiferente'] : proximo })
   }
 
+  function alterarNivelOpcao(indice: number, nivelAlvo: NivelSenioridadeAlvo) {
+    const opcao = objetivo.opcoes[indice]
+    atualizarOpcao(indice, {
+      nivelAlvo,
+      tiposContratoAceitos: contratosAoAlterarNivel(nivelAlvo, opcao.tiposContratoAceitos),
+    })
+  }
+
   return (
     <div className="grid gap-6">
       <div>
@@ -142,7 +151,7 @@ export function ObjetivoProfissionalSection({ candidato, atualizarCampo, erros }
         <div className="grid gap-4">
           <p className="text-sm text-[var(--color-muted)]">Adicione de 1 a 3 objetivos. O primeiro será usado como prioridade inicial.</p>
           {objetivo.opcoes.map((opcao, indice) => (
-            <div key={opcao.id} className="grid gap-4 rounded-lg border border-[var(--color-line)] p-4">
+            <div key={opcao.id} className="grid gap-4 rounded-lg border border-[var(--color-line)] p-4 transition-all duration-200 ease-out">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <span className="text-sm font-semibold text-[var(--color-ink)]">Objetivo {indice + 1}</span>
                 {objetivo.opcoes.length > 1 && (
@@ -164,7 +173,7 @@ export function ObjetivoProfissionalSection({ candidato, atualizarCampo, erros }
                 label="Nível pretendido"
                 value={opcao.nivelAlvo ?? 'Indiferente'}
                 options={niveis.map((nivel) => ({ value: nivel, label: nivel }))}
-                onChange={(e) => atualizarOpcao(indice, { nivelAlvo: e.target.value as NivelSenioridadeAlvo })}
+                onChange={(e) => alterarNivelOpcao(indice, e.target.value as NivelSenioridadeAlvo)}
               />
 
               <fieldset className="grid gap-2">
@@ -180,18 +189,20 @@ export function ObjetivoProfissionalSection({ candidato, atualizarCampo, erros }
                 {erros[`modalidades_${indice}`] && <span className="text-xs text-[var(--color-score-low)]">{erros[`modalidades_${indice}`]}</span>}
               </fieldset>
 
-              <fieldset className="grid gap-2">
-                <legend className="text-sm font-medium text-[var(--color-ink)]">Tipos de contrato aceitos</legend>
-                <div className="flex flex-wrap gap-2">
-                  {contratos.map((contrato) => (
-                    <label key={contrato} className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-line)] px-3 py-2 text-sm text-[var(--color-ink-soft)]">
-                      <input type="checkbox" checked={opcao.tiposContratoAceitos.includes(contrato)} onChange={() => alternarContratoOpcao(indice, contrato)} />
-                      {contrato}
-                    </label>
-                  ))}
-                </div>
-                {erros[`contratos_${indice}`] && <span className="text-xs text-[var(--color-score-low)]">{erros[`contratos_${indice}`]}</span>}
-              </fieldset>
+              {contratosVisiveisParaNivel(opcao.nivelAlvo) && (
+                <fieldset className="grid gap-2 transition-all duration-200 ease-out">
+                  <legend className="text-sm font-medium text-[var(--color-ink)]">Tipos de contrato aceitos</legend>
+                  <div className="flex flex-wrap gap-2">
+                    {contratos.map((contrato) => (
+                      <label key={contrato} className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-line)] px-3 py-2 text-sm text-[var(--color-ink-soft)]">
+                        <input type="checkbox" checked={opcao.tiposContratoAceitos.includes(contrato)} onChange={() => alternarContratoOpcao(indice, contrato)} />
+                        {contrato === 'Freelance' ? 'Freelancer' : contrato}
+                      </label>
+                    ))}
+                  </div>
+                  {erros[`contratos_${indice}`] && <span className="text-xs text-[var(--color-score-low)]">{erros[`contratos_${indice}`]}</span>}
+                </fieldset>
+              )}
             </div>
           ))}
           {erros.opcoes && <span className="text-xs text-[var(--color-score-low)]">{erros.opcoes}</span>}

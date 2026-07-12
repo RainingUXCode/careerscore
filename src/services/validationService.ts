@@ -1,4 +1,5 @@
 import type { Candidato } from '../types/models'
+import { contratosVisiveisParaNivel } from './objetivoContratoService'
 
 export interface ErrosValidacao {
   [campo: string]: string
@@ -79,7 +80,9 @@ export const validationService = {
       opcoes.forEach((opcao, indice) => {
         if (!opcao.cargoOuArea?.trim()) erros[`opcao_${indice}`] = 'Informe o cargo ou área deste objetivo.'
         if (!opcao.modalidadesAceitas?.length) erros[`modalidades_${indice}`] = 'Selecione pelo menos uma modalidade.'
-        if (!opcao.tiposContratoAceitos?.length) erros[`contratos_${indice}`] = 'Selecione pelo menos um tipo de contrato.'
+        if (contratosVisiveisParaNivel(opcao.nivelAlvo) && !opcao.tiposContratoAceitos?.length) {
+          erros[`contratos_${indice}`] = 'Selecione pelo menos um tipo de contrato.'
+        }
       })
     }
 

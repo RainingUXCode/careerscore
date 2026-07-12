@@ -40,6 +40,7 @@ describe('construirFiltrosBusca', () => {
       pais: 'Brasil',
       modalidade: Modalidade.REMOTO,
     })
+    expect(filtros.palavraChave).toContain('estágio')
   })
 
   it('usa o objetivo definido na query e nao substitui pelo cargo anterior', () => {

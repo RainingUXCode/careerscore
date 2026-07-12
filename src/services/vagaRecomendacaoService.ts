@@ -6,6 +6,7 @@ import { TipoCompetencia } from '../types/enums'
 import { jobAggregatorService, type OpcoesBuscaVagas } from './jobAggregatorService'
 import { calcularCompatibilidade } from './compatibilidadeService'
 import { resolverAreaDoCandidato } from './areaBridgeService'
+import { termoBuscaContratoInferido } from './objetivoContratoService'
 
 const COMPATIBILIDADE_MINIMA = 55
 const DIAS_MAXIMOS_VAGA_RECENTE = 45
@@ -63,7 +64,8 @@ export function montarTermosBuscaObjetivo(candidato: Candidato): string {
 
   const cargo = textoOuUndefined(objetivo?.opcoes[0]?.cargoOuArea) ?? obterCargoBusca(candidato)
   const conhecimentoPrincipal = competenciaPrincipal(candidato)
-  return [cargo, area?.nome, conhecimentoPrincipal].filter(Boolean).join(' ').trim() || 'vaga'
+  const termoContrato = termoBuscaContratoInferido(objetivo?.opcoes[0]?.nivelAlvo)
+  return [cargo, termoContrato, area?.nome, conhecimentoPrincipal].filter(Boolean).join(' ').trim() || 'vaga'
 }
 
 export interface BuscaObjetivo {
@@ -117,7 +119,7 @@ export function construirBuscasObjetivo(candidato: Candidato): BuscaObjetivo[] {
       filtros: {
         ...base,
         cargo: textoOuUndefined(opcao.cargoOuArea),
-        palavraChave: [opcao.cargoOuArea, area?.nome, competenciaPrincipal(candidato)].filter(Boolean).join(' '),
+        palavraChave: [opcao.cargoOuArea, termoBuscaContratoInferido(opcao.nivelAlvo), area?.nome, competenciaPrincipal(candidato)].filter(Boolean).join(' '),
         modalidade: modalidadeUnica(opcao.modalidadesAceitas),
       },
       objetivoOrigem: opcao.cargoOuArea,

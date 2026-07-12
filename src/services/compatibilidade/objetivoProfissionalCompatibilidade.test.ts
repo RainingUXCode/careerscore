@@ -62,4 +62,29 @@ describe('objetivo profissional na compatibilidade', () => {
 
     expect(resultado.dimensoes.find((d) => d.chave === 'area')?.nota).toBe(10)
   })
+
+  it('infere contrato pelo nivel quando contratos foram ocultados', () => {
+    const resultado = calcularCompatibilidade(
+      criarCandidatoBase({
+        objetivoProfissional: {
+          modo: 'definido',
+          opcoes: [{
+            id: 'obj-1',
+            cargoOuArea: 'Estágio em Dados',
+            nivelAlvo: 'Estágio',
+            tiposContratoAceitos: [],
+            modalidadesAceitas: [Modalidade.REMOTO],
+          }],
+          preferenciasExploracao: { interesses: [] },
+        },
+      }),
+      criarVagaBase({
+        tipoContrato: 'Estágio',
+        modalidade: Modalidade.REMOTO,
+        modalidadeInformada: true,
+      }),
+    )
+
+    expect(resultado.dimensoes.find((d) => d.chave === 'tipo_contrato')?.nota).toBe(10)
+  })
 })
