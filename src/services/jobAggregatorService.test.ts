@@ -117,4 +117,37 @@ describe('JobAggregatorService', () => {
     const resultado = await agregador.buscar({})
     expect(resultado.codigosErro).toEqual(['cota_excedida'])
   })
+
+  it('statusFonteReal é "com_vagas" quando a fonte real teve sucesso e retornou vagas', async () => {
+    const real = providerFalso('jsearch', 'real', [criarVagaBase({ id: 'real-1', fonte: { id: 'jsearch', nome: 'JSearch', tipo: 'real' } })])
+    const agregador = new JobAggregatorService([real])
+    const resultado = await agregador.buscar({})
+    expect(resultado.statusFonteReal).toBe('com_vagas')
+  })
+
+  it('statusFonteReal é "vazia" quando a fonte real teve sucesso mas não retornou vagas — diferente de "falhou"', async () => {
+    const realVazia: JobProvider = {
+      id: 'jsearch',
+      nome: 'JSearch',
+      tipo: 'real',
+      buscar: vi.fn().mockResolvedValue({ vagas: [], sucesso: true }),
+    }
+    const agregador = new JobAggregatorService([realVazia])
+    const resultado = await agregador.buscar({})
+    expect(resultado.statusFonteReal).toBe('vazia')
+    expect(resultado.statusFonteReal).not.toBe('falhou')
+    expect(resultado.codigosErro).toEqual([])
+  })
+
+  it('statusFonteReal é "falhou" quando a fonte real não teve sucesso', async () => {
+    const realFalhou: JobProvider = {
+      id: 'jsearch',
+      nome: 'JSearch',
+      tipo: 'real',
+      buscar: vi.fn().mockResolvedValue({ vagas: [], sucesso: false, erro: 'timeout' }),
+    }
+    const agregador = new JobAggregatorService([realFalhou])
+    const resultado = await agregador.buscar({})
+    expect(resultado.statusFonteReal).toBe('falhou')
+  })
 })

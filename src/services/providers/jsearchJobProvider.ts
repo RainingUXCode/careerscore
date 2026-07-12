@@ -1,4 +1,4 @@
-import type { JobProvider, FiltroBuscaVagas, ResultadoProviderVagas } from '../../types/jobProvider'
+import type { JobProvider, FiltroBuscaVagas, OpcoesBuscaProvider, ResultadoProviderVagas } from '../../types/jobProvider'
 import type { VagaNormalizada } from '../../types/vaga'
 
 interface RespostaApiVagas {
@@ -21,7 +21,7 @@ export class JSearchJobProvider implements JobProvider {
   readonly nome = 'JSearch (LinkedIn, Indeed, Glassdoor e outros)'
   readonly tipo = 'real' as const
 
-  async buscar(filtros: FiltroBuscaVagas): Promise<ResultadoProviderVagas> {
+  async buscar(filtros: FiltroBuscaVagas, opcoes?: OpcoesBuscaProvider): Promise<ResultadoProviderVagas> {
     const params = new URLSearchParams()
     if (filtros.palavraChave) params.set('termo', filtros.palavraChave)
     if (filtros.areaId) params.set('area', filtros.areaId)
@@ -31,6 +31,14 @@ export class JSearchJobProvider implements JobProvider {
     if (filtros.pais) params.set('pais', filtros.pais)
     if (filtros.modalidade) params.set('modalidade', filtros.modalidade)
     params.set('pagina', '1')
+
+    // Cache-buster: garante uma URL diferente da última consulta idêntica,
+    // para não bater no cache de CDN de "/api/vagas" (que serve por até 24h
+    // quando a busca anterior teve vagas reais) — sem isso, "Atualizar vagas"
+    // podia devolver a mesma resposta em cache em vez de consultar de novo.
+    if (opcoes?.forcarAtualizacao) {
+      params.set('atualizar', Date.now().toString(36))
+    }
 
     try {
       const resposta = await fetch(`/api/vagas?${params.toString()}`)

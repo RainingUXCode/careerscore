@@ -187,6 +187,7 @@ export interface MetaVagas {
   consultadoEm: string
   totalVagasEncontradas: number
   totalVagasRecentes: number
+  statusFonteReal: 'com_vagas' | 'vazia' | 'falhou' | 'sem_provider_real'
 }
 
 export interface ResultadoProcessamento {

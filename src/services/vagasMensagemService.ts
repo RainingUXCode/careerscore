@@ -16,10 +16,24 @@ function motivoFalha(codigos: string[]): string {
  * Mensagem de fallback — nunca afirma que vagas de demonstração estão sendo
  * exibidas quando, na prática, o fallback também não retornou nenhuma vaga
  * (evita a contradição "exibimos demonstração" ao lado de uma lista vazia).
+ *
+ * Só deve ser usada quando a fonte real de fato FALHOU (statusFonteReal ===
+ * 'falhou') — nunca para uma resposta real vazia com sucesso, que tem sua
+ * própria mensagem (`mensagemFonteRealVazia`) e não deve dizer "não
+ * configurado" nem nenhum motivo de erro que não aconteceu.
  */
 export function mensagemFallbackJSearch(codigos: string[], temVagasFallback: boolean): string {
   const motivo = motivoFalha(codigos)
   return temVagasFallback
     ? `${motivo} Exibimos vagas de demonstração.`
     : `${motivo} Nenhuma vaga de demonstração pôde ser exibida para os filtros atuais desta consulta.`
+}
+
+/**
+ * Mensagem para quando a fonte real respondeu com sucesso, mas não encontrou
+ * nenhuma vaga para os filtros usados — não é uma falha, não deve soar como
+ * uma.
+ */
+export function mensagemFonteRealVazia(): string {
+  return 'A fonte real respondeu, mas não encontrou vagas para esta busca. Tente atualizar mais tarde ou ajustar o objetivo profissional.'
 }

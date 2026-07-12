@@ -23,9 +23,12 @@ describe('montarQueryJSearch', () => {
     expect(montarQueryJSearch({})).toBe('vaga')
   })
 
-  it('acrescenta a cidade no formato "em <cidade>"', () => {
+  it('nunca embute a cidade no texto da query, mesmo se um chamador tentar passar esse campo', () => {
+    // @ts-expect-error -- cidade não faz mais parte do contrato; garante que não voltou por engano
     const query = montarQueryJSearch({ cargo: 'Analista Contábil', cidade: 'Porto Alegre' })
-    expect(query).toBe('Analista Contábil em Porto Alegre')
+    expect(query).toBe('Analista Contábil')
+    expect(query).not.toContain('Porto Alegre')
+    expect(query).not.toContain(' em ')
   })
 
   it('produz query curta e sem termos genéricos extras quando só a área é conhecida', () => {

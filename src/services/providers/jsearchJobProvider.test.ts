@@ -98,4 +98,41 @@ describe('JSearchJobProvider', () => {
     expect(url.searchParams.get('pais')).toBe('Brasil')
     expect(url.searchParams.get('modalidade')).toBe('Remoto')
   })
+
+  it('sem forcarAtualizacao, não adiciona parâmetro de cache-busting', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ vagas: [], pagina: 1 }) })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const provider = new JSearchJobProvider()
+    await provider.buscar({ cargo: 'Analista' })
+
+    const url = new URL(fetchMock.mock.calls[0][0], 'https://careerscore.test')
+    expect(url.searchParams.has('atualizar')).toBe(false)
+  })
+
+  it('com forcarAtualizacao, adiciona um parâmetro de cache-busting que muda a URL', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ vagas: [], pagina: 1 }) })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const provider = new JSearchJobProvider()
+    await provider.buscar({ cargo: 'Analista' }, { forcarAtualizacao: true })
+
+    const url = new URL(fetchMock.mock.calls[0][0], 'https://careerscore.test')
+    expect(url.searchParams.has('atualizar')).toBe(true)
+    expect(url.searchParams.get('atualizar')).toBeTruthy()
+  })
+
+  it('duas chamadas seguidas com forcarAtualizacao geram URLs diferentes (garantindo miss de CDN)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ vagas: [], pagina: 1 }) })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const provider = new JSearchJobProvider()
+    await provider.buscar({ cargo: 'Analista' }, { forcarAtualizacao: true })
+    await new Promise((resolve) => setTimeout(resolve, 2))
+    await provider.buscar({ cargo: 'Analista' }, { forcarAtualizacao: true })
+
+    const primeiraUrl = fetchMock.mock.calls[0][0]
+    const segundaUrl = fetchMock.mock.calls[1][0]
+    expect(primeiraUrl).not.toBe(segundaUrl)
+  })
 })

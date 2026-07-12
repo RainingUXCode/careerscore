@@ -20,7 +20,7 @@ import { CurriculoTab } from '../components/report/CurriculoTab'
 import { obterRecursosEstudo } from '../data/recursosEstudo'
 import { obterPlataformasRecomendadas } from '../data/plataformasPorArea'
 import { resolverAreaDoCandidato } from '../services/areaBridgeService'
-import { mensagemFallbackJSearch } from '../services/vagasMensagemService'
+import { mensagemFallbackJSearch, mensagemFonteRealVazia } from '../services/vagasMensagemService'
 import { faixasCompatibilidade } from '../services/faixaCompatibilidadeService'
 import { rotuloNivelAtual } from '../services/nivelAtualService'
 
@@ -398,7 +398,8 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
               const meta = resultado.metaVagas
               const totalVagasEncontradas = meta?.totalVagasEncontradas ?? recomendacoes.length
               const totalVagasRecentes = meta?.totalVagasRecentes ?? recomendacoes.length
-              const fonteRealFalhou = Boolean(meta?.codigosErro.length)
+              const fonteRealFalhou = meta?.statusFonteReal === 'falhou'
+              const fonteRealVazia = meta?.statusFonteReal === 'vazia'
 
               return (
                 <>
@@ -410,6 +411,8 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                             <span>Fonte: vagas de demonstração</span>
                           ) : fonteRealFalhou ? (
                             <span>Fonte real indisponível nesta consulta</span>
+                          ) : fonteRealVazia ? (
+                            <span>Fonte real: sem resultados nesta busca</span>
                           ) : (
                             <span>Fonte: JSearch</span>
                           )}
@@ -445,9 +448,15 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                     </div>
                   )}
 
-                  {meta && meta.codigosErro.length > 0 && (
+                  {fonteRealFalhou && (
                     <div className="rounded-xl border border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.08)] px-4 py-3 text-sm text-[var(--color-score-low)]">
-                      {mensagemFallbackJSearch(meta.codigosErro, temVagasDemonstracao)}
+                      {mensagemFallbackJSearch(meta?.codigosErro ?? [], temVagasDemonstracao)}
+                    </div>
+                  )}
+
+                  {fonteRealVazia && (
+                    <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-canvas-raised)] px-4 py-3 text-sm text-[var(--color-ink-soft)]">
+                      {mensagemFonteRealVazia()}
                     </div>
                   )}
 

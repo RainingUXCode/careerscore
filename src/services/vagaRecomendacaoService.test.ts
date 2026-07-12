@@ -189,6 +189,7 @@ describe('construirFiltrosBusca', () => {
       usouFallback: false,
       deCache: false,
       consultadoEm: '2026-07-11T12:00:00.000Z',
+      statusFonteReal: 'com_vagas',
     })
 
     await vagaRecomendacaoService.gerarRecomendacoes(criarCandidatoBase())
@@ -204,6 +205,7 @@ describe('construirFiltrosBusca', () => {
       usouFallback: false,
       deCache: false,
       consultadoEm: '2026-07-11T12:00:00.000Z',
+      statusFonteReal: 'com_vagas',
     })
 
     await vagaRecomendacaoService.gerarRecomendacoes(criarCandidatoBase(), { forcarAtualizacao: true })
@@ -225,6 +227,7 @@ describe('construirFiltrosBusca', () => {
       usouFallback: false,
       deCache: false,
       consultadoEm: '2026-07-11T12:00:00.000Z',
+      statusFonteReal: 'com_vagas',
     })
 
     const resultado = await vagaRecomendacaoService.gerarRecomendacoes(criarCandidatoBase({ competencias: [] }))
@@ -247,6 +250,7 @@ describe('construirFiltrosBusca', () => {
       usouFallback: false,
       deCache: false,
       consultadoEm: '2026-07-11T12:00:00.000Z',
+      statusFonteReal: 'com_vagas',
     })
 
     const resultado = await vagaRecomendacaoService.gerarRecomendacoes(
@@ -272,6 +276,7 @@ describe('construirFiltrosBusca', () => {
       usouFallback: false,
       deCache: false,
       consultadoEm: '2026-07-11T12:00:00.000Z',
+      statusFonteReal: 'com_vagas',
     })
 
     const resultado = await vagaRecomendacaoService.gerarRecomendacoes(

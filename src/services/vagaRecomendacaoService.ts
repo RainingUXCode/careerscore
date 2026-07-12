@@ -2,7 +2,7 @@ import type { Candidato } from '../types/models'
 import type { FiltroBuscaVagas } from '../types/jobProvider'
 import type { VagaNormalizada } from '../types/vaga'
 import type { VagaRecomendada } from '../types/compatibilidade'
-import { jobAggregatorService, type OpcoesBuscaVagas } from './jobAggregatorService'
+import { jobAggregatorService, type OpcoesBuscaVagas, type StatusFonteReal } from './jobAggregatorService'
 import { calcularCompatibilidade } from './compatibilidadeService'
 import { resolverAreaDoCandidato } from './areaBridgeService'
 import { termoBuscaContratoInferido } from './objetivoContratoService'
@@ -20,6 +20,7 @@ export interface ResultadoRecomendacoes {
   consultadoEm: string
   totalVagasEncontradas: number
   totalVagasRecentes: number
+  statusFonteReal: StatusFonteReal
 }
 
 function vagaRecente(vaga: VagaNormalizada): boolean {
@@ -181,6 +182,7 @@ export const vagaRecomendacaoService = {
       consultadoEm: resultado.consultadoEm,
       totalVagasEncontradas: resultado.vagas.length,
       totalVagasRecentes: vagasRecentes.length,
+      statusFonteReal: resultado.statusFonteReal,
     }
   },
 }

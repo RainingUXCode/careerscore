@@ -12,6 +12,11 @@ export interface FiltroBuscaVagas {
   limite?: number
 }
 
+export interface OpcoesBuscaProvider {
+  /** Ignora qualquer cache (do provider ou de CDN) e força uma nova consulta. */
+  forcarAtualizacao?: boolean
+}
+
 export interface ResultadoProviderVagas {
   vagas: VagaNormalizada[]
   /** false se o provider falhou/está indisponível (o agregador decide o fallback). */
@@ -29,5 +34,5 @@ export interface JobProvider {
   readonly id: string
   readonly nome: string
   readonly tipo: 'real' | 'demonstracao'
-  buscar(filtros: FiltroBuscaVagas): Promise<ResultadoProviderVagas>
+  buscar(filtros: FiltroBuscaVagas, opcoes?: OpcoesBuscaProvider): Promise<ResultadoProviderVagas>
 }

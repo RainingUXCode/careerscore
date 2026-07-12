@@ -3,6 +3,7 @@ import type { JSearchRawJob, JSearchSearchResponse } from '../src/services/provi
 import type { VagaNormalizada } from '../src/types/vaga'
 import { obterAreaPorId } from '../src/data/areasProfissionais'
 import { montarQueryJSearch } from '../src/services/jsearchQueryService'
+import { avaliarLocalizacaoVaga } from '../src/services/filtroLocalizacaoService'
 
 /**
  * GET /api/vagas
@@ -14,7 +15,21 @@ import { montarQueryJSearch } from '../src/services/jsearchQueryService'
  * Parâmetros aceitos (todos opcionais, todos validados/limitados):
  *   termo, area, cargo, cidade, estado, pais, modalidade, pagina
  *
- * Resposta 200: { vagas: VagaNormalizada[], pagina: number, fonte: {...} }
+ * `cidade` e `estado` são aceitos e validados, mas NÃO entram no texto de
+ * busca enviado à JSearch (ver comentário em jsearchQueryService.ts) —
+ * embutir uma cidade de porte médio na query tende a restringir demais os
+ * resultados, inclusive derrubando vagas remotas. Em vez disso, os dois
+ * continuam disponíveis como dados estruturados e são usados depois da
+ * resposta, por `avaliarLocalizacaoVaga`, que aplica a regra correta por
+ * modalidade (remoto nunca exige local; híbrido/presencial exigem cidade E
+ * estado — nunca só estado).
+ *
+ * Qualquer parâmetro extra não reconhecido (ex: um cache-buster do botão
+ * "Atualizar vagas") é ignorado com segurança — só muda a URL o suficiente
+ * para não bater no cache de CDN de uma consulta anterior.
+ *
+ * Resposta 200: { vagas, pagina, fonte, diagnostico } — diagnostico só tem
+ * contagens (nunca a chave, nunca a descrição completa das vagas).
  * Resposta de erro: { erro: string, mensagem: string } com status apropriado
  */
 
@@ -66,7 +81,7 @@ export default async function handler(request: Request): Promise<Response> {
   const pagina = Number.isFinite(paginaBruta) && paginaBruta > 0 ? Math.min(Math.floor(paginaBruta), 5) : 1
 
   const areaNome = areaId ? obterAreaPorId(areaId)?.nome : undefined
-  const query = montarQueryJSearch({ cargo, termo, areaNome, cidade })
+  const query = montarQueryJSearch({ cargo, termo, areaNome })
 
   const params = new URLSearchParams({
     query,
@@ -117,29 +132,39 @@ export default async function handler(request: Request): Promise<Response> {
     return respostaErro('resposta_invalida', 'A fonte real de vagas não retornou resultados utilizáveis.', 502)
   }
 
+  let vagasNormalizadas: VagaNormalizada[] = []
   let vagas: VagaNormalizada[] = []
   try {
-    vagas = vagasBrutas.slice(0, LIMITE_MAXIMO_RESULTADOS).map(normalizarVagaJSearch)
-    if (estado) {
-      vagas = vagas.filter(
-        (vaga) => !vaga.localizacao.estado || vaga.localizacao.estado.toLowerCase().includes(estado.toLowerCase()),
-      )
-    }
+    vagasNormalizadas = vagasBrutas.slice(0, LIMITE_MAXIMO_RESULTADOS).map(normalizarVagaJSearch)
+    vagas = vagasNormalizadas.filter((vaga) => avaliarLocalizacaoVaga(vaga, { cidade, estado }).manter)
   } catch {
     return respostaErro('falha_normalizacao', 'Não foi possível interpretar os dados retornados pela fonte real.', 502)
   }
+
+  // Contagens seguras para depuração — nunca a chave, nunca descrição completa.
+  const diagnostico = {
+    brutas: vagasBrutas.length,
+    normalizadas: vagasNormalizadas.length,
+    aposFiltroLocalizacao: vagas.length,
+    finais: vagas.length,
+  }
+  console.log('[api/vagas] diagnostico:', JSON.stringify(diagnostico), 'query:', query)
 
   return new Response(
     JSON.stringify({
       vagas,
       pagina,
       fonte: { id: 'jsearch', nome: 'JSearch (LinkedIn, Indeed, Glassdoor e outros)', tipo: 'real' },
+      diagnostico,
     }),
     {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=3600',
+        // Uma resposta real vazia não é cacheada por 24h — a próxima consulta
+        // deve tentar de novo, não ficar "presa" mostrando vazio por um dia.
+        'Cache-Control':
+          vagas.length > 0 ? 'public, s-maxage=86400, stale-while-revalidate=3600' : 'no-store',
       },
     },
   )

@@ -21,6 +21,7 @@ describe('ReportPage', () => {
         consultadoEm: new Date().toISOString(),
         totalVagasEncontradas: 0,
         totalVagasRecentes: 0,
+        statusFonteReal: 'vazia',
       },
     }
 
