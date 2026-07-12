@@ -1,4 +1,4 @@
-import type { Candidato } from '../../types/models'
+﻿import type { Candidato } from '../../types/models'
 import { TipoCompetencia, NomeArea, StatusCurso } from '../../types/enums'
 import type {
   CareerAnalyzer,
@@ -14,6 +14,7 @@ import type {
 import type { ContextoExterno } from '../../types/externo'
 import { competenciasReferenciaPorArea } from '../../data/competenciasReferencia'
 import { formatarData, calcularDuracaoMeses } from '../../utils/formatters'
+import { sanitizarLinks } from '../linksService'
 
 export interface CurriculoGeneratorInput {
   candidato: Candidato
@@ -80,9 +81,14 @@ function montarContato(candidato: Candidato): ContatoOtimizado {
 
 function montarResumoProfissional(candidato: Candidato): string {
   const area = obterNomeArea(candidato)
+  const objetivo = candidato.objetivoProfissional
   const referencia = competenciasReferenciaPorArea[candidato.areaInteresse.nome] ?? []
   const tecnicas = candidato.competencias.filter((c) => c.tipo === TipoCompetencia.TECNICA).map((c) => c.nome)
-  const tecnicasDestaque = ordenarPorRelevancia(tecnicas, referencia).slice(0, 3)
+  const conhecimentosObjetivo = objetivo?.modo === 'exploracao' ? [] : (objetivo?.conhecimentosPrioritarios ?? [])
+  const tecnicasDestaque = ordenarPorRelevancia(tecnicas, [
+    ...conhecimentosObjetivo,
+    ...referencia,
+  ]).slice(0, 3)
 
   const mesesExperiencia = candidato.experiencias.reduce(
     (soma, exp) => soma + calcularDuracaoMeses(exp.dataInicio, exp.empregoAtual ? undefined : exp.dataFim),
@@ -91,10 +97,17 @@ function montarResumoProfissional(candidato: Candidato): string {
 
   const frases: string[] = []
 
-  frases.push(
-    `Profissional nível ${candidato.nivelExperiencia.toLowerCase()} com interesse em ${area}` +
-      (tecnicasDestaque.length > 0 ? `, com conhecimento em ${listarComE(tecnicasDestaque)}.` : '.'),
-  )
+  if (objetivo?.modo === 'exploracao' && !objetivo.cargoDesejado.trim()) {
+    frases.push(
+      `Profissional nível ${candidato.nivelExperiencia.toLowerCase()} em fase de exploração profissional na área de ${area}` +
+        (tecnicasDestaque.length > 0 ? `, com conhecimento em ${listarComE(tecnicasDestaque)}.` : '.'),
+    )
+  } else {
+    frases.push(
+      `Profissional nível ${(objetivo?.nivelAlvo && objetivo.nivelAlvo !== 'Indiferente' ? objetivo.nivelAlvo : candidato.nivelExperiencia).toLowerCase()} com objetivo em ${objetivo?.cargoDesejado?.trim() || area}` +
+        (tecnicasDestaque.length > 0 ? `, com conhecimento em ${listarComE(tecnicasDestaque)}.` : '.'),
+    )
+  }
 
   if (mesesExperiencia > 0) {
     frases.push(`Acumula ${formatarDuracao(mesesExperiencia)} de experiência profissional registrada.`)
@@ -112,8 +125,11 @@ function montarResumoProfissional(candidato: Candidato): string {
 
 function montarHabilidadesTecnicas(candidato: Candidato): string[] {
   const referencia = competenciasReferenciaPorArea[candidato.areaInteresse.nome] ?? []
+  const prioritarias = candidato.objetivoProfissional?.modo === 'exploracao'
+    ? []
+    : (candidato.objetivoProfissional?.conhecimentosPrioritarios ?? [])
   const tecnicas = candidato.competencias.filter((c) => c.tipo === TipoCompetencia.TECNICA).map((c) => c.nome)
-  return ordenarPorRelevancia(tecnicas, referencia)
+  return ordenarPorRelevancia(tecnicas, [...prioritarias, ...referencia])
 }
 
 /**
@@ -166,7 +182,7 @@ function montarIdiomas(candidato: Candidato): IdiomaOtimizado[] {
 }
 
 function montarLinks(candidato: Candidato): LinkOtimizado[] {
-  return candidato.links.filter((link) => link.url.trim()).map((link) => ({ tipo: link.tipo, url: link.url }))
+  return sanitizarLinks(candidato.links).map((link) => ({ tipo: link.tipo, url: link.url }))
 }
 
 /**

@@ -20,6 +20,9 @@ export function encontrarAreaPorTexto(texto: string): AreaProfissional | undefin
     const candidatos = [area.nome, ...area.sinonimos, ...(area.palavrasRelacionadas ?? [])]
     return candidatos.some((candidato) => {
       const normalizado = normalizarTexto(candidato)
+      if (normalizado.length <= 2) {
+        return alvo.split(/\s+/).includes(normalizado)
+      }
       return alvo.includes(normalizado) || normalizado.includes(alvo)
     })
   })

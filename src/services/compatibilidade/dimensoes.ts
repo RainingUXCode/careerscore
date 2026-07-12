@@ -1,11 +1,11 @@
 import type { Candidato } from '../../types/models'
-import type { VagaNormalizada, RequisitoVaga } from '../../types/vaga'
+import type { TipoContratoVaga, VagaNormalizada, RequisitoVaga } from '../../types/vaga'
 import type { DimensaoCompatibilidade, CompetenciaTransferivel } from '../../types/compatibilidade'
 import { NivelProficiencia, StatusCurso, TipoCompetencia } from '../../types/enums'
 import { obterAreaPorId } from '../../data/areasProfissionais'
 import { resolverAreaDoCandidato } from '../areaBridgeService'
 import { resolverSenioridadeDoCandidato, ordemSenioridadeVaga } from '../senioridadeBridgeService'
-import { detectarOrigensTransferiveis } from '../competenciasTransferiveisService'
+import { analisarExperienciasAnteriores, detectarOrigensTransferiveis } from '../competenciasTransferiveisService'
 import { normalizarTexto } from '../../utils/texto'
 import { calcularDuracaoMeses } from '../../utils/formatters'
 import { pesosCompatibilidade } from '../../config/pesosCompatibilidade'
@@ -31,6 +31,25 @@ function naoAvaliada(chave: string, nome: string, peso: number, motivo: string):
 function textoContem(textoNormalizado: string, termo: string): boolean {
   const termoNormalizado = normalizarTexto(termo)
   return textoNormalizado.includes(termoNormalizado) || termoNormalizado.includes(textoNormalizado)
+}
+
+function obterCargoObjetivoAtivo(candidato: Candidato): string | undefined {
+  const objetivo = candidato.objetivoProfissional
+  if (objetivo?.modo === 'definido') return objetivo.cargoDesejado?.trim() || undefined
+  if (objetivo?.modo === 'multiplas_opcoes') {
+    const principal = objetivo.opcoes.find((opcao) => opcao.principal) ?? objetivo.opcoes[0]
+    return principal?.cargoOuArea?.trim() || undefined
+  }
+  return undefined
+}
+
+function obterNivelAlvoAtivo(candidato: Candidato): Candidato['objetivoProfissional']['nivelAlvo'] | undefined {
+  const objetivo = candidato.objetivoProfissional
+  if (objetivo?.modo === 'definido') return objetivo.nivelAlvo
+  if (objetivo?.modo === 'multiplas_opcoes') {
+    return (objetivo.opcoes.find((opcao) => opcao.principal) ?? objetivo.opcoes[0])?.nivelAlvo
+  }
+  return undefined
 }
 
 // ---------------------------------------------------------------------------
@@ -75,25 +94,23 @@ export function avaliarCargo(candidato: Candidato, vaga: VagaNormalizada): Dimen
   const chave = 'cargo'
   const nome = 'Cargo'
   const peso = pesosCompatibilidade.cargo
+  const cargoDesejado = obterCargoObjetivoAtivo(candidato)
 
-  if (!vaga.cargoNormalizado || candidato.experiencias.length === 0) {
-    return naoAvaliada(chave, nome, peso, 'Sem dado suficiente de cargo (vaga ou histórico do candidato) para comparar.')
+  if (!vaga.cargoNormalizado || !cargoDesejado) {
+    return naoAvaliada(chave, nome, peso, 'Sem objetivo de cargo definido para comparar com a vaga.')
   }
 
-  const cargoVagaNormalizado = normalizarTexto(vaga.cargoNormalizado)
-  const cargoMaisProximo = candidato.experiencias.find((exp) => textoContem(cargoVagaNormalizado, exp.cargo))
-
-  const nota = cargoMaisProximo ? 10 : 3
+  const bateObjetivo = textoContem(normalizarTexto(vaga.cargoNormalizado), cargoDesejado)
   return {
     ...baseDimensao(chave, nome, peso),
     avaliada: true,
-    confianca: 0.6,
-    nota,
-    justificativa: cargoMaisProximo
-      ? `Você já atuou como "${cargoMaisProximo.cargo}", próximo do cargo da vaga.`
-      : 'Nenhuma experiência anterior com cargo diretamente parecido, mas isso não impede a candidatura.',
-    requisitosAtendidos: cargoMaisProximo ? [vaga.cargoNormalizado] : [],
-    requisitosParciais: cargoMaisProximo ? [] : [vaga.cargoNormalizado],
+    confianca: 0.8,
+    nota: bateObjetivo ? 10 : 4,
+    justificativa: bateObjetivo
+      ? `O cargo da vaga se aproxima do seu objetivo atual: "${cargoDesejado}".`
+      : `O cargo da vaga nao parece diretamente alinhado ao objetivo informado: "${cargoDesejado}".`,
+    requisitosAtendidos: bateObjetivo ? [cargoDesejado] : [],
+    requisitosParciais: bateObjetivo ? [] : [cargoDesejado],
   }
 }
 
@@ -109,7 +126,15 @@ export function avaliarSenioridade(candidato: Candidato, vaga: VagaNormalizada):
     return naoAvaliada(chave, nome, peso, 'A empresa não informou o nível de experiência esperado para esta vaga.')
   }
 
-  const senioridadeCandidato = resolverSenioridadeDoCandidato(candidato.nivelExperiencia)
+  const nivelAlvo = obterNivelAlvoAtivo(candidato)
+  if (!nivelAlvo) {
+    return naoAvaliada(chave, nome, peso, 'Sem senioridade alvo definida no objetivo profissional.')
+  }
+  if (nivelAlvo === 'Indiferente') {
+    return naoAvaliada(chave, nome, peso, 'O objetivo profissional marcou senioridade indiferente.')
+  }
+  const senioridadeCandidato =
+    nivelAlvo && nivelAlvo !== 'Trainee' ? nivelAlvo : resolverSenioridadeDoCandidato(candidato.nivelExperiencia)
   const diferenca = Math.abs(ordemSenioridadeVaga[senioridadeCandidato] - ordemSenioridadeVaga[vaga.senioridade])
   const nota = diferenca === 0 ? 10 : diferenca === 1 ? 6 : 2
 
@@ -180,10 +205,20 @@ export function avaliarExperiencia(candidato: Candidato, vaga: VagaNormalizada):
     return naoAvaliada(chave, nome, peso, 'A vaga não especifica experiência mínima.')
   }
 
-  const mesesCandidato = candidato.experiencias.reduce(
-    (soma, exp) => soma + calcularDuracaoMeses(exp.dataInicio, exp.empregoAtual ? undefined : exp.dataFim),
-    0,
-  )
+  const analisesExperiencias = analisarExperienciasAnteriores(candidato, vaga.areaId)
+  const mesesPonderados = candidato.experiencias.reduce((soma, exp) => {
+    const analise = analisesExperiencias.find((item) => item.experienciaId === exp.idExperiencia)
+    const meses = calcularDuracaoMeses(exp.dataInicio, exp.empregoAtual ? undefined : exp.dataFim || exp.dataInicio)
+    const pesoRelacao =
+      analise?.tipoRelacao === 'direta'
+        ? 1
+        : analise?.tipoRelacao === 'relacionada'
+          ? 0.6
+          : (analise?.competenciasTransferiveis.length ?? 0) > 0
+            ? 0.25
+            : 0
+    return soma + meses * pesoRelacao
+  }, 0)
 
   if (vaga.experienciaMinimaMeses === 0) {
     return {
@@ -195,13 +230,13 @@ export function avaliarExperiencia(candidato: Candidato, vaga: VagaNormalizada):
     }
   }
 
-  const proporcao = Math.min(mesesCandidato / vaga.experienciaMinimaMeses, 1)
+  const proporcao = Math.min(mesesPonderados / vaga.experienciaMinimaMeses, 1)
   return {
     ...baseDimensao(chave, nome, peso),
     avaliada: true,
     confianca: 0.8,
     nota: Math.round(proporcao * 10),
-    justificativa: `Vaga pede ao menos ${vaga.experienciaMinimaMeses} meses de experiência; você tem ${mesesCandidato} meses registrados.`,
+    justificativa: `Vaga pede ao menos ${vaga.experienciaMinimaMeses} meses de experiência; seu histórico ponderado por relação com a área equivale a ${Math.round(mesesPonderados)} meses.`,
   }
 }
 
@@ -300,36 +335,43 @@ export function avaliarSoftSkills(candidato: Candidato, vaga: VagaNormalizada): 
 export function avaliarCompetenciasTransferiveis(
   candidato: Candidato,
   requisitosAusentesDiretos: string[],
+  areaAlvoId?: string,
 ): { dimensao: DimensaoCompatibilidade; competenciasTransferiveis: CompetenciaTransferivel[] } {
   const chave = 'competencias_transferiveis'
-  const nome = 'Competências transferíveis'
+  const nome = 'Competencias transferiveis'
   const peso = pesosCompatibilidade.competenciasTransferiveis
+  const requisitosUnicos = Array.from(new Set(requisitosAusentesDiretos.map((requisito) => requisito.trim()).filter(Boolean)))
 
-  if (requisitosAusentesDiretos.length === 0) {
+  if (requisitosUnicos.length === 0) {
     return {
-      dimensao: naoAvaliada(chave, nome, peso, 'Não há requisitos ausentes para avaliar via competências transferíveis.'),
+      dimensao: naoAvaliada(chave, nome, peso, 'Nao ha requisitos ausentes para avaliar via competencias transferiveis.'),
       competenciasTransferiveis: [],
     }
   }
 
-  const origens = detectarOrigensTransferiveis(candidato)
+  const origens = detectarOrigensTransferiveis(candidato, areaAlvoId)
   const encontradas: CompetenciaTransferivel[] = []
+  const competenciasJaContadas = new Set<string>()
 
-  for (const ausente of requisitosAusentesDiretos) {
+  for (const ausente of requisitosUnicos) {
     for (const origem of origens) {
       const item = origem.itens.find((i) => textoContem(normalizarTexto(ausente), i.competencia))
-      if (item) {
+      const chaveCompetencia = item ? normalizarTexto(item.competencia) : undefined
+      if (item && chaveCompetencia && !competenciasJaContadas.has(chaveCompetencia)) {
+        competenciasJaContadas.add(chaveCompetencia)
         encontradas.push({
           nome: item.competencia,
           origemExperiencia: origem.origemDescricao,
-          justificativa: `Sua ${origem.origemDescricao} demonstra ${item.competencia.toLowerCase()} (${item.justificativa}), competência transferível para esta vaga. Isso não substitui experiência direta, mas fortalece sua aderência comportamental.`,
+          justificativa: item.justificativa,
+          evidencia: item.evidencia,
+          confianca: item.confianca,
         })
         break
       }
     }
   }
 
-  const nota = Math.round((encontradas.length / requisitosAusentesDiretos.length) * 10)
+  const nota = Math.round((encontradas.length / requisitosUnicos.length) * 10)
 
   return {
     dimensao: {
@@ -339,8 +381,8 @@ export function avaliarCompetenciasTransferiveis(
       nota: encontradas.length > 0 ? nota : undefined,
       justificativa:
         encontradas.length > 0
-          ? `${encontradas.length} requisito(s) ausente(s) tem competência transferível relacionada na sua experiência.`
-          : 'Nenhuma competência transferível identificada para os requisitos ausentes.',
+          ? `${encontradas.length} requisito(s) ausente(s) tem competencia transferivel relacionada na sua experiencia.`
+          : 'Nenhuma competencia transferivel identificada para os requisitos ausentes.',
       requisitosParciais: encontradas.map((e) => e.nome),
     },
     competenciasTransferiveis: encontradas,
@@ -546,10 +588,13 @@ export function avaliarLocalizacao(
     return { dimensao: naoAvaliada(chave, nome, peso, 'A vaga não informou cidade/estado para avaliar compatibilidade geográfica.') }
   }
 
-  const mesmoEstado = normalizarTexto(candidato.estado) === normalizarTexto(vaga.localizacao.estado ?? '')
-  const mesmaCidade = normalizarTexto(candidato.cidade) === normalizarTexto(vaga.localizacao.cidade ?? '')
+  const cidadeBase = candidato.objetivoProfissional?.cidadeBusca?.trim() || candidato.cidade
+  const estadoBase = candidato.objetivoProfissional?.estadoBusca?.trim() || candidato.estado
+  const aceitaMudanca = Boolean(candidato.objetivoProfissional?.aceitaMudanca)
+  const mesmoEstado = normalizarTexto(estadoBase) === normalizarTexto(vaga.localizacao.estado ?? '')
+  const mesmaCidade = normalizarTexto(cidadeBase) === normalizarTexto(vaga.localizacao.cidade ?? '')
 
-  const nota = mesmaCidade ? 10 : mesmoEstado ? 5 : 0
+  const nota = mesmaCidade ? 10 : mesmoEstado ? 5 : aceitaMudanca ? 4 : 0
   return {
     dimensao: {
       ...baseDimensao(chave, nome, peso),
@@ -578,7 +623,16 @@ export function avaliarModalidade(candidato: Candidato, vaga: VagaNormalizada): 
     return naoAvaliada(chave, nome, peso, 'A empresa não informou a modalidade de trabalho.')
   }
 
-  const preferidas = candidato.modalidadesPreferidas?.length ? candidato.modalidadesPreferidas : undefined
+  const objetivo = candidato.objetivoProfissional
+  const modalidadesObjetivo =
+    objetivo?.modo === 'multiplas_opcoes'
+      ? (objetivo.opcoes.find((opcao) => opcao.principal) ?? objetivo.opcoes[0])?.modalidadesAceitas
+      : objetivo?.modalidadesAceitas
+  const preferidas = modalidadesObjetivo?.length
+    ? modalidadesObjetivo
+    : candidato.modalidadesPreferidas?.length
+      ? candidato.modalidadesPreferidas
+      : undefined
   if (!preferidas) {
     return naoAvaliada(chave, nome, peso, 'Você ainda não informou preferência de modalidade no seu perfil.')
   }
@@ -598,13 +652,55 @@ export function avaliarModalidade(candidato: Candidato, vaga: VagaNormalizada): 
 // ---------------------------------------------------------------------------
 // 14. Tipo de contrato — sem preferência coletada no formulário ainda
 // ---------------------------------------------------------------------------
-export function avaliarTipoContrato(): DimensaoCompatibilidade {
-  return naoAvaliada(
-    'tipo_contrato',
-    'Tipo de contrato',
-    pesosCompatibilidade.tipoContrato,
-    'O formulário ainda não coleta preferência de tipo de contrato.',
+export function avaliarTipoContrato(candidato: Candidato, vaga: VagaNormalizada): DimensaoCompatibilidade {
+  const objetivo = candidato.objetivoProfissional
+  const preferidos =
+    objetivo?.modo === 'multiplas_opcoes'
+      ? ((objetivo.opcoes.find((opcao) => opcao.principal) ?? objetivo.opcoes[0])?.tiposContratoAceitos ?? [])
+      : (objetivo?.tiposContratoAceitos ?? [])
+  if (!vaga.tipoContrato || preferidos.length === 0 || preferidos.includes('Indiferente')) {
+    return naoAvaliada(
+      'tipo_contrato',
+      'Tipo de contrato',
+      pesosCompatibilidade.tipoContrato,
+      'Tipo de contrato não informado pela vaga ou marcado como indiferente no objetivo.',
+    )
+  }
+  const atende = preferidos.includes(vaga.tipoContrato as TipoContratoVaga)
+  return {
+    ...baseDimensao('tipo_contrato', 'Tipo de contrato', pesosCompatibilidade.tipoContrato),
+    avaliada: true,
+    confianca: 0.8,
+    nota: atende ? 10 : 3,
+    justificativa: atende
+      ? `Tipo de contrato "${vaga.tipoContrato}" está entre os aceitos.`
+      : `Tipo de contrato "${vaga.tipoContrato}" não está entre os preferidos.`,
+    requisitosAtendidos: atende ? [vaga.tipoContrato] : [],
+    requisitosParciais: atende ? [] : [vaga.tipoContrato],
+  }
+}
+
+export function avaliarConhecimentosPrioritarios(candidato: Candidato, vaga: VagaNormalizada): DimensaoCompatibilidade {
+  const conhecimentos = candidato.objetivoProfissional?.conhecimentosPrioritarios ?? []
+  if (conhecimentos.length === 0) {
+    return naoAvaliada('conhecimentos_prioritarios', 'Conhecimentos prioritários', 0, 'Nenhum conhecimento prioritário informado no objetivo.')
+  }
+  const textoVaga = normalizarTexto(
+    [vaga.titulo, vaga.descricao, ...vaga.requisitosObrigatorios.map((r) => r.nome), ...vaga.requisitosDesejaveis.map((r) => r.nome)].join(' '),
   )
+  const atendidos = conhecimentos.filter((conhecimento) => textoVaga.includes(normalizarTexto(conhecimento)))
+  const ausentes = conhecimentos.filter((conhecimento) => !atendidos.includes(conhecimento))
+  return {
+    ...baseDimensao('conhecimentos_prioritarios', 'Conhecimentos prioritários', 0),
+    avaliada: true,
+    confianca: 0.6,
+    nota: Math.round((atendidos.length / conhecimentos.length) * 10),
+    justificativa: atendidos.length > 0
+      ? 'A vaga menciona parte dos conhecimentos priorizados no objetivo.'
+      : 'A vaga não menciona os conhecimentos priorizados no objetivo.',
+    requisitosAtendidos: atendidos,
+    requisitosAusentes: ausentes,
+  }
 }
 
 // ---------------------------------------------------------------------------

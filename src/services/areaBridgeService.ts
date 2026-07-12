@@ -23,6 +23,20 @@ const mapaNomeAreaParaId: Record<string, string> = {
 
 export function resolverAreaDoCandidato(candidato: Candidato): AreaProfissional | undefined {
   const { nome, nomePersonalizado } = candidato.areaInteresse
+  const objetivo = candidato.objetivoProfissional
+  const cargoObjetivo =
+    objetivo?.modo === 'multiplas_opcoes'
+      ? (objetivo.opcoes.find((opcao) => opcao.principal)?.cargoOuArea ?? objetivo.opcoes[0]?.cargoOuArea ?? '')
+      : objetivo?.modo === 'definido'
+        ? objetivo.cargoDesejado
+        : ''
+  if (/\brh\b|recursos humanos|departamento pessoal/i.test(cargoObjetivo)) {
+    return obterAreaPorId('recursos-humanos')
+  }
+  const areaDoObjetivo = cargoObjetivo
+    ? encontrarAreaPorTexto(cargoObjetivo)
+    : undefined
+  if (areaDoObjetivo) return areaDoObjetivo
 
   if (nome === NomeArea.OUTRO) {
     return nomePersonalizado ? encontrarAreaPorTexto(nomePersonalizado) : undefined

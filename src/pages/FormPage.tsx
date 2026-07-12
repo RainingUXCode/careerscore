@@ -5,7 +5,7 @@ import { validationService, type ErrosValidacao } from '../services/validationSe
 import { StepIndicator } from '../components/form/StepIndicator'
 import { DadosPessoaisSection } from '../components/form/DadosPessoaisSection'
 import { AreaInteresseSection } from '../components/form/AreaInteresseSection'
-import { ModalidadePreferenciaSection } from '../components/form/ModalidadePreferenciaSection'
+import { ObjetivoProfissionalSection } from '../components/form/ObjetivoProfissionalSection'
 import { EscolaridadeSection } from '../components/form/EscolaridadeSection'
 import { ExperienciaSection } from '../components/form/ExperienciaSection'
 import { CompetenciasSection } from '../components/form/CompetenciasSection'
@@ -21,6 +21,7 @@ interface FormPageProps {
 
 const etapas = [
   'Perfil e área de interesse',
+  'Objetivo profissional',
   'Escolaridade',
   'Experiência',
   'Competências',
@@ -45,12 +46,17 @@ export function FormPage({ onConcluir }: FormPageProps) {
       setErros(novosErros)
       return Object.keys(novosErros).length === 0
     }
-    if (etapaAtual === 6) {
-      const novosErros = validationService.validarLinks(form.candidato.links)
+    if (etapaAtual === 1) {
+      const novosErros = validationService.validarObjetivoProfissional(form.candidato)
       setErros(novosErros)
       return Object.keys(novosErros).length === 0
     }
     if (etapaAtual === 7) {
+      const novosErros = validationService.validarLinks(form.candidato.links)
+      setErros(novosErros)
+      return Object.keys(novosErros).length === 0
+    }
+    if (etapaAtual === 8) {
       const erro = validationService.validarCurriculo(form.candidato.curriculo?.arquivo)
       setErroCurriculo(erro)
       return erro === null
@@ -107,15 +113,16 @@ export function FormPage({ onConcluir }: FormPageProps) {
                   erros={erros}
                 />
               </div>
-              <div className="border-t border-[var(--color-line)] pt-6">
-                <ModalidadePreferenciaSection
-                  modalidadesPreferidas={form.candidato.modalidadesPreferidas}
-                  atualizar={(modalidades) => form.atualizarCampo('modalidadesPreferidas', modalidades)}
-                />
-              </div>
             </div>
           )}
           {etapaAtual === 1 && (
+            <ObjetivoProfissionalSection
+              candidato={form.candidato}
+              atualizarCampo={form.atualizarCampo}
+              erros={erros}
+            />
+          )}
+          {etapaAtual === 2 && (
             <EscolaridadeSection
               escolaridades={form.candidato.escolaridades}
               adicionar={form.adicionarEscolaridade}
@@ -123,7 +130,7 @@ export function FormPage({ onConcluir }: FormPageProps) {
               remover={form.removerEscolaridade}
             />
           )}
-          {etapaAtual === 2 && (
+          {etapaAtual === 3 && (
             <ExperienciaSection
               experiencias={form.candidato.experiencias}
               adicionar={form.adicionarExperiencia}
@@ -131,7 +138,7 @@ export function FormPage({ onConcluir }: FormPageProps) {
               remover={form.removerExperiencia}
             />
           )}
-          {etapaAtual === 3 && (
+          {etapaAtual === 4 && (
             <CompetenciasSection
               competencias={form.candidato.competencias}
               areaInteresse={form.candidato.areaInteresse.nome}
@@ -139,7 +146,7 @@ export function FormPage({ onConcluir }: FormPageProps) {
               remover={form.removerCompetencia}
             />
           )}
-          {etapaAtual === 4 && (
+          {etapaAtual === 5 && (
             <CertificadosSection
               certificados={form.candidato.certificados}
               adicionar={form.adicionarCertificado}
@@ -149,7 +156,7 @@ export function FormPage({ onConcluir }: FormPageProps) {
               removerArquivo={form.removerArquivoCertificado}
             />
           )}
-          {etapaAtual === 5 && (
+          {etapaAtual === 6 && (
             <IdiomasSection
               idiomas={form.candidato.idiomas}
               adicionar={form.adicionarIdioma}
@@ -157,7 +164,7 @@ export function FormPage({ onConcluir }: FormPageProps) {
               remover={form.removerIdioma}
             />
           )}
-          {etapaAtual === 6 && (
+          {etapaAtual === 7 && (
             <LinksSection
               areaInteresse={form.candidato.areaInteresse}
               links={form.candidato.links}
@@ -167,7 +174,7 @@ export function FormPage({ onConcluir }: FormPageProps) {
               erros={erros}
             />
           )}
-          {etapaAtual === 7 && (
+          {etapaAtual === 8 && (
             <CurriculoSection
               curriculo={form.candidato.curriculo}
               definirCurriculo={form.definirCurriculo}

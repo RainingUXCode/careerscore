@@ -32,7 +32,7 @@ describe('motor de compatibilidade multissetorial', () => {
           idExperiencia: '1',
           empresa: 'Loja X',
           cargo: 'Atendente',
-          descricao: 'Atendimento ao cliente no balcão.',
+          descricao: 'Atendimento ao cliente no balcão com negociação de condições e resolução de problemas.',
           dataInicio: '2023-01',
           empregoAtual: true,
         },
@@ -186,7 +186,7 @@ describe('motor de compatibilidade multissetorial', () => {
     const candidato = criarCandidatoBase({
       areaInteresse: { idArea: 'a', nome: NomeArea.COMERCIO_ATENDIMENTO },
       experiencias: [
-        { idExperiencia: '1', empresa: 'Loja X', cargo: 'Atendente', descricao: 'Atendimento ao cliente.', dataInicio: '2023-01', empregoAtual: true },
+        { idExperiencia: '1', empresa: 'Loja X', cargo: 'Atendente', descricao: 'Atendimento ao cliente com negociação e resolução de problemas.', dataInicio: '2023-01', empregoAtual: true },
       ],
     })
     const vaga = criarVagaBase({

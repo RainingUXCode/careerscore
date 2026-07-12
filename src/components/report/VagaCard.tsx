@@ -165,6 +165,49 @@ export function VagaCard({ recomendacao }: { recomendacao: VagaRecomendada }) {
             </div>
           )}
 
+          {compatibilidade.experienciasAnteriores.length > 0 && (
+            <div className="mt-4 rounded-lg bg-[var(--color-well)] p-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-primary)]">
+                Experiência prévia e transição
+              </p>
+              <div className="grid gap-2">
+                {compatibilidade.experienciasAnteriores.map((experiencia) => (
+                  <div key={experiencia.experienciaId} className="rounded-lg border border-[var(--color-line)] p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-[var(--color-ink)]">
+                        {experiencia.cargo || 'Experiência anterior'}
+                        {experiencia.empresa ? ` · ${experiencia.empresa}` : ''}
+                      </p>
+                      <Badge tone={experiencia.tipoRelacao === 'direta' ? 'high' : experiencia.tipoRelacao === 'relacionada' ? 'primary' : 'neutral'}>
+                        {experiencia.tipoRelacao === 'direta'
+                          ? 'Diretamente relacionada'
+                          : experiencia.tipoRelacao === 'relacionada'
+                            ? 'Relacionada'
+                            : experiencia.tipoRelacao === 'transferivel'
+                              ? 'Competências transferíveis'
+                              : 'Evidência baixa'}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-[var(--color-ink-soft)]">{experiencia.justificativa}</p>
+                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">
+                      Confiança {Math.round(experiencia.confianca * 100)}%
+                      {experiencia.areaDetectada ? ` · área detectada: ${experiencia.areaDetectada}` : ''}
+                    </p>
+                    {experiencia.competenciasTransferiveis.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {experiencia.competenciasTransferiveis.map((competencia) => (
+                          <span key={`${experiencia.experienciaId}-${competencia.nome}`} className="rounded-full bg-[var(--color-primary-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-primary-bright)]">
+                            {competencia.nome}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {compatibilidade.confiabilidade.dimensoesSemDados.length > 0 && (
             <p className="mt-4 text-xs text-[var(--color-muted)]">
               Dados ausentes para: {compatibilidade.confiabilidade.dimensoesSemDados.join(', ')}.
@@ -179,7 +222,7 @@ export function VagaCard({ recomendacao }: { recomendacao: VagaRecomendada }) {
                 </span>
               ))}
             </div>
-            {vaga.urlOriginal && (
+            {vaga.urlOriginal && vaga.fonte.tipo === 'real' && (
               <a
                 href={vaga.urlOriginal}
                 target="_blank"

@@ -22,8 +22,10 @@ import {
   avaliarLocalizacao,
   avaliarModalidade,
   avaliarTipoContrato,
+  avaliarConhecimentosPrioritarios,
   avaliarFaixaSalarial,
 } from './compatibilidade/dimensoes'
+import { analisarExperienciasAnteriores } from './competenciasTransferiveisService'
 
 function calcularCompatibilidadeGeral(dimensoes: DimensaoCompatibilidade[]): number {
   const avaliadas = dimensoes.filter((d) => d.avaliada && d.nota !== undefined)
@@ -100,6 +102,7 @@ export function calcularCompatibilidade(candidato: Candidato, vaga: VagaNormaliz
   const { dimensao: dimensaoTransferiveis, competenciasTransferiveis } = avaliarCompetenciasTransferiveis(
     candidato,
     requisitosAusentesDiretos,
+    vaga.areaId,
   )
 
   const { dimensao: dimensaoIdiomas, impeditivo: impeditivoIdioma } = avaliarIdiomas(candidato, vaga)
@@ -107,7 +110,8 @@ export function calcularCompatibilidade(candidato: Candidato, vaga: VagaNormaliz
   const { dimensao: dimensaoLicencas, impeditivo: impeditivoLicenca } = avaliarLicencas(candidato, vaga)
   const { dimensao: dimensaoLocalizacao, impeditivo: impeditivoLocalizacao } = avaliarLocalizacao(candidato, vaga)
   const dimensaoModalidade = avaliarModalidade(candidato, vaga)
-  const dimensaoTipoContrato = avaliarTipoContrato()
+  const dimensaoTipoContrato = avaliarTipoContrato(candidato, vaga)
+  const dimensaoConhecimentosPrioritarios = avaliarConhecimentosPrioritarios(candidato, vaga)
   const dimensaoFaixaSalarial = avaliarFaixaSalarial()
 
   const dimensoes = [
@@ -125,6 +129,7 @@ export function calcularCompatibilidade(candidato: Candidato, vaga: VagaNormaliz
     dimensaoLocalizacao,
     dimensaoModalidade,
     dimensaoTipoContrato,
+    dimensaoConhecimentosPrioritarios,
     dimensaoFaixaSalarial,
   ]
 
@@ -135,6 +140,7 @@ export function calcularCompatibilidade(candidato: Candidato, vaga: VagaNormaliz
   ].filter((i): i is ImpeditivoCompatibilidade => Boolean(i))
 
   const compatibilidadeGeral = calcularCompatibilidadeGeral(dimensoes)
+  const experienciasAnteriores = analisarExperienciasAnteriores(candidato, vaga.areaId)
   const confiabilidade = calcularConfiabilidade(dimensoes)
   const { recomendacao, motivos } = gerarRecomendacao(compatibilidadeGeral, confiabilidade, impeditivos)
 
@@ -144,6 +150,7 @@ export function calcularCompatibilidade(candidato: Candidato, vaga: VagaNormaliz
     dimensoes,
     confiabilidade,
     competenciasTransferiveis,
+    experienciasAnteriores,
     impeditivos,
     recomendacaoCandidatura: recomendacao,
     motivosRecomendacao: motivos,

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { CurriculoOtimizadoResult, OrigemDado, OrigensCurriculo } from '../../types/engine'
 import type { ErrosCurriculo } from '../../services/curriculoValidacaoService'
 import { normalizarUrl } from '../../services/curriculoValidacaoService'
+import { sanitizarLinksPorTipoUrl } from '../../services/linksService'
 import { NivelProficiencia } from '../../types/enums'
 
 interface Props {
@@ -149,7 +150,7 @@ export function CurriculoOtimizadoEditor({ curriculo, origens, secaoFoiEditada, 
 
   function atualizarLink(indice: number, url: string) {
     const novos = curriculo.links.map((link, i) => (i === indice ? { ...link, url } : link))
-    atualizarCampo('links', novos)
+    atualizarCampo('links', url.trim() ? sanitizarLinksPorTipoUrl(novos) : novos)
     if (avisoAjusteLink[indice]) {
       setAvisoAjusteLink((atual) => {
         const { [indice]: _removido, ...resto } = atual
@@ -168,7 +169,7 @@ export function CurriculoOtimizadoEditor({ curriculo, origens, secaoFoiEditada, 
     const { url: normalizada, normalizado } = normalizarUrl(atual.url)
     if (normalizado && normalizada !== atual.url) {
       const novos = curriculo.links.map((link, i) => (i === indice ? { ...link, url: normalizada } : link))
-      atualizarCampo('links', novos)
+      atualizarCampo('links', sanitizarLinksPorTipoUrl(novos))
       setAvisoAjusteLink((atual2) => ({ ...atual2, [indice]: `Ajustado para ${normalizada}` }))
     }
   }

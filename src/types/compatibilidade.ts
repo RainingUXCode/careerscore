@@ -43,11 +43,26 @@ export interface CompetenciaTransferivel {
   nome: string
   origemExperiencia: string
   justificativa: string
+  evidencia?: string
+  confianca?: number
 }
 
 export interface ImpeditivoCompatibilidade {
   descricao: string
   motivo: string
+}
+
+export type TipoRelacaoExperiencia = 'direta' | 'relacionada' | 'transferivel' | 'sem_evidencia'
+
+export interface ExperienciaAnteriorAvaliada {
+  experienciaId: string
+  cargo: string
+  empresa: string
+  tipoRelacao: TipoRelacaoExperiencia
+  areaDetectada?: string
+  competenciasTransferiveis: CompetenciaTransferivel[]
+  confianca: number
+  justificativa: string
 }
 
 /**
@@ -68,6 +83,7 @@ export interface ResultadoCompatibilidade {
   dimensoes: DimensaoCompatibilidade[]
   confiabilidade: ConfiabilidadeCompatibilidade
   competenciasTransferiveis: CompetenciaTransferivel[]
+  experienciasAnteriores: ExperienciaAnteriorAvaliada[]
   impeditivos: ImpeditivoCompatibilidade[]
   recomendacaoCandidatura: RecomendacaoCandidatura
   motivosRecomendacao: string[]
@@ -77,4 +93,6 @@ export interface ResultadoCompatibilidade {
 export interface VagaRecomendada {
   vaga: VagaNormalizada
   compatibilidade: ResultadoCompatibilidade
+  objetivoOrigem?: string
+  buscaAmpla?: boolean
 }

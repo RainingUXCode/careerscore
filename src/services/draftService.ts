@@ -1,4 +1,6 @@
 import type { Candidato } from '../types/models'
+import { normalizarObjetivoProfissional } from './objetivoProfissionalService'
+import { sanitizarLinks } from './linksService'
 
 const CHAVE_RASCUNHO = 'careerscore:rascunho-candidato'
 
@@ -14,6 +16,7 @@ function montarCandidato(dados: Partial<Candidato>, fallback: Candidato): Candid
       ...fallback.areaInteresse,
       ...dados.areaInteresse,
     },
+    objetivoProfissional: normalizarObjetivoProfissional(dados.objetivoProfissional ?? fallback.objetivoProfissional),
     modalidadesPreferidas: escolherArray(dados.modalidadesPreferidas, fallback.modalidadesPreferidas),
     escolaridades: escolherArray(dados.escolaridades, fallback.escolaridades),
     experiencias: escolherArray(dados.experiencias, fallback.experiencias),
@@ -23,7 +26,7 @@ function montarCandidato(dados: Partial<Candidato>, fallback: Candidato): Candid
       arquivo: undefined,
     })),
     idiomas: escolherArray(dados.idiomas, fallback.idiomas),
-    links: escolherArray(dados.links, fallback.links),
+    links: sanitizarLinks(escolherArray(dados.links, fallback.links)),
     curriculo: undefined,
   }
 }
@@ -49,6 +52,7 @@ export const draftService = {
     const serializavel = {
       ...candidatoSemArquivo,
       certificados: candidato.certificados.map(({ arquivo: _arquivo, ...certificado }) => certificado),
+      links: sanitizarLinks(candidato.links),
     }
     window.localStorage.setItem(CHAVE_RASCUNHO, JSON.stringify(serializavel))
   },

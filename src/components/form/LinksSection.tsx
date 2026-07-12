@@ -35,6 +35,8 @@ function obterOrientacaoLinks(areaInteresse: Candidato['areaInteresse']): string
 }
 
 export function LinksSection({ areaInteresse, links, adicionar, atualizar, remover, erros }: Props) {
+  const podeAdicionar = links.length < Object.values(TipoLink).length
+
   return (
     <div className="flex flex-col gap-3">
       {links.length === 0 && (
@@ -67,7 +69,7 @@ export function LinksSection({ areaInteresse, links, adicionar, atualizar, remov
           </button>
         </div>
       ))}
-      <Button variant="secondary" onClick={adicionar} className="self-start">
+      <Button variant="secondary" onClick={adicionar} className="self-start" disabled={!podeAdicionar}>
         + Adicionar link
       </Button>
     </div>

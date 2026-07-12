@@ -1,8 +1,14 @@
 import type { Candidato } from '../types/models'
 import type { VagaNormalizada } from '../types/vaga'
 import { NomeArea, NivelExperiencia, Modalidade } from '../types/enums'
+import { objetivoProfissionalPadrao } from '../services/objetivoProfissionalService'
 
-export function criarCandidatoBase(sobrescreve: Partial<Candidato> = {}): Candidato {
+type CandidatoFixture = Partial<Omit<Candidato, 'objetivoProfissional'>> & {
+  objetivoProfissional?: Partial<Candidato['objetivoProfissional']>
+}
+
+export function criarCandidatoBase(sobrescreve: CandidatoFixture = {}): Candidato {
+  const { objetivoProfissional, ...demaisCampos } = sobrescreve
   return {
     idCandidato: 'cand-1',
     nome: 'Candidato Teste',
@@ -11,6 +17,16 @@ export function criarCandidatoBase(sobrescreve: Partial<Candidato> = {}): Candid
     cidade: 'João Pessoa',
     estado: 'PB',
     areaInteresse: { idArea: 'area-1', nome: NomeArea.TECNOLOGIA_DADOS },
+    objetivoProfissional: {
+      ...objetivoProfissionalPadrao,
+      ...objetivoProfissional,
+      modo: objetivoProfissional?.modo ?? (objetivoProfissional?.cargoDesejado ? 'definido' : objetivoProfissionalPadrao.modo),
+      preferenciasExploracao: {
+        ...objetivoProfissionalPadrao.preferenciasExploracao,
+        ...objetivoProfissional?.preferenciasExploracao,
+      },
+      opcoes: objetivoProfissional?.opcoes ?? objetivoProfissionalPadrao.opcoes,
+    },
     modalidadesPreferidas: [Modalidade.REMOTO],
     nivelExperiencia: NivelExperiencia.JUNIOR,
     escolaridades: [],
@@ -19,7 +35,7 @@ export function criarCandidatoBase(sobrescreve: Partial<Candidato> = {}): Candid
     certificados: [],
     idiomas: [],
     links: [],
-    ...sobrescreve,
+    ...demaisCampos,
   }
 }
 

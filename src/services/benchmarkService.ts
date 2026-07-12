@@ -73,7 +73,9 @@ const benchmarkPorArea: Record<string, PontuacaoDetalhes> = {
 }
 
 function calcularTotal(detalhes: PontuacaoDetalhes): number {
-  return Math.min(100, Object.values(detalhes).reduce((soma, valor) => soma + valor, 0))
+  const totalBruto = Object.values(detalhes).reduce((soma, valor) => soma + valor, 0)
+  const totalPossivel = categoriasPontuacao.reduce((soma, categoria) => soma + categoria.maximo, 0)
+  return totalPossivel > 0 ? Math.min(100, Math.round((totalBruto / totalPossivel) * 100)) : 0
 }
 
 function calcularPercentil(score: number, media: number): number {

@@ -12,6 +12,8 @@ import type {
 import { NomeArea, NivelExperiencia, TipoLink, TipoCompetencia, NivelProficiencia, StatusCurso, FormatoCurriculo, Modalidade } from '../types/enums'
 import { gerarId } from '../utils/id'
 import { draftService } from '../services/draftService'
+import { objetivoProfissionalPadrao } from '../services/objetivoProfissionalService'
+import { proximoTipoLinkDisponivel, substituirLink } from '../services/linksService'
 
 function candidatoVazio(): Candidato {
   return {
@@ -22,6 +24,7 @@ function candidatoVazio(): Candidato {
     cidade: '',
     estado: '',
     areaInteresse: { idArea: gerarId('area'), nome: NomeArea.TECNOLOGIA_DADOS },
+    objetivoProfissional: objetivoProfissionalPadrao,
     modalidadesPreferidas: [Modalidade.REMOTO, Modalidade.HIBRIDO, Modalidade.PRESENCIAL],
     nivelExperiencia: NivelExperiencia.JUNIOR,
     escolaridades: [],
@@ -172,13 +175,16 @@ export function useCandidatoForm() {
 
   // Links
   function adicionarLink() {
-    const novo: LinkProfissional = { idLink: gerarId('link'), tipo: TipoLink.LINKEDIN, url: '' }
-    setCandidato((atual) => ({ ...atual, links: [...atual.links, novo] }))
+    setCandidato((atual) => {
+      const tipo = proximoTipoLinkDisponivel(atual.links) ?? TipoLink.OUTRO
+      const novo: LinkProfissional = { idLink: gerarId('link'), tipo, url: '' }
+      return { ...atual, links: [...atual.links, novo] }
+    })
   }
   function atualizarLink(id: string, patch: Partial<LinkProfissional>) {
     setCandidato((atual) => ({
       ...atual,
-      links: atual.links.map((l) => (l.idLink === id ? { ...l, ...patch } : l)),
+      links: substituirLink(atual.links, id, patch),
     }))
   }
   function removerLink(id: string) {

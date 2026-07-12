@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import type { Candidato, ResultadoProcessamento } from './types/models'
+import type { Candidato, ResultadoProcessamento, SugestaoCarreira } from './types/models'
 import { LandingPage } from './pages/LandingPage'
 import { FormPage } from './pages/FormPage'
 import { ProcessingPage } from './pages/ProcessingPage'
@@ -12,6 +12,7 @@ import { historyService, type HistoricoScoreItem } from './services/historyServi
 import { contextoExternoService } from './services/contextoExternoService'
 import { documentTextService, type TextoExtraido } from './services/documentTextService'
 import { careerAnalysisEngine } from './services/engine/careerAnalysisEngine'
+import { gerarSugestoesCarreira, sugestaoParaObjetivo } from './services/sugestaoCarreiraService'
 
 type Etapa = 'landing' | 'formulario' | 'processamento' | 'relatorio'
 
@@ -43,7 +44,10 @@ function App() {
       textoCurriculoRef.current ?? Promise.resolve({ texto: null } as TextoExtraido),
     ])
     const analise = analysisService.gerarAnalise(candidatoAtual, contexto)
-    const { recomendacoes, fontesComFalha, codigosErro, usouFallback, deCache, consultadoEm } =
+    const sugestoesCarreira = candidatoAtual.objetivoProfissional.modo === 'exploracao'
+      ? gerarSugestoesCarreira(candidatoAtual)
+      : []
+    const { recomendacoes, fontesComFalha, codigosErro, usouFallback, deCache, consultadoEm, totalVagasEncontradas, totalVagasRecentes } =
       await vagaRecomendacaoService.gerarRecomendacoes(candidatoAtual)
     const padraoMercado = await marketPatternService.calcularPadraoMercado(candidatoAtual)
     const atsAnalise = await careerAnalysisEngine.analisarAts({
@@ -63,7 +67,8 @@ function App() {
       atsAnalise,
       curriculoOtimizado,
       padraoMercado,
-      metaVagas: { fontesComFalha, codigosErro, usouFallback, deCache, consultadoEm },
+      metaVagas: { fontesComFalha, codigosErro, usouFallback, deCache, consultadoEm, totalVagasEncontradas, totalVagasRecentes },
+      sugestoesCarreira,
     }
     setResultado(novoResultado)
     setHistorico(historyService.salvarResultado(novoResultado))
@@ -73,14 +78,14 @@ function App() {
   /** Busca vagas de novo, ignorando o cache — só disparado pelo clique explícito em "Atualizar vagas". */
   async function atualizarVagas() {
     if (!resultado) return
-    const { recomendacoes, fontesComFalha, codigosErro, usouFallback, deCache, consultadoEm } =
+    const { recomendacoes, fontesComFalha, codigosErro, usouFallback, deCache, consultadoEm, totalVagasEncontradas, totalVagasRecentes } =
       await vagaRecomendacaoService.gerarRecomendacoes(resultado.candidato, { forcarAtualizacao: true })
     const padraoMercado = await marketPatternService.calcularPadraoMercado(resultado.candidato)
     setResultado({
       ...resultado,
       recomendacoes,
       padraoMercado,
-      metaVagas: { fontesComFalha, codigosErro, usouFallback, deCache, consultadoEm },
+      metaVagas: { fontesComFalha, codigosErro, usouFallback, deCache, consultadoEm, totalVagasEncontradas, totalVagasRecentes },
     })
   }
 
@@ -89,6 +94,16 @@ function App() {
     setCandidatoAtual(resultado.candidato)
     contextoExternoRef.current = contextoExternoService.coletar(resultado.candidato)
     textoCurriculoRef.current = documentTextService.extrairTextoCurriculo(resultado.candidato.curriculo)
+    setResultado(null)
+    setEtapa('processamento')
+  }
+
+  function escolherSugestaoComoObjetivo(sugestao: SugestaoCarreira) {
+    if (!resultado) return
+    const candidatoAtualizado = sugestaoParaObjetivo(resultado.candidato, sugestao)
+    setCandidatoAtual(candidatoAtualizado)
+    contextoExternoRef.current = contextoExternoService.coletar(candidatoAtualizado)
+    textoCurriculoRef.current = documentTextService.extrairTextoCurriculo(candidatoAtualizado.curriculo)
     setResultado(null)
     setEtapa('processamento')
   }
@@ -110,6 +125,7 @@ function App() {
         onReanalisar={reanalisar}
         onReiniciar={reiniciar}
         onAtualizarVagas={atualizarVagas}
+        onEscolherSugestao={escolherSugestaoComoObjetivo}
       />
     )
   }
