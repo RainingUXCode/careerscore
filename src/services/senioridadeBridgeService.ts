@@ -1,4 +1,3 @@
-import { NivelExperiencia } from '../types/enums'
 import type { NivelSenioridadeVaga } from '../types/vaga'
 
 /** Ordem crescente de senioridade, usada para comparar candidato x vaga. */
@@ -14,19 +13,6 @@ export const ordemSenioridadeVaga: Record<NivelSenioridadeVaga, number> = {
   Coordenação: 4,
   Gerência: 5,
   Diretoria: 6,
-}
-
-const mapaNivelExperienciaParaSenioridadeVaga: Record<NivelExperiencia, NivelSenioridadeVaga> = {
-  [NivelExperiencia.ESTAGIARIO]: 'Estágio',
-  [NivelExperiencia.JUNIOR]: 'Júnior',
-  [NivelExperiencia.PLENO]: 'Pleno',
-  [NivelExperiencia.SENIOR]: 'Sênior',
-  [NivelExperiencia.ESPECIALISTA]: 'Especialista',
-}
-
-/** Traduz o nível de experiência do candidato (enum do formulário) para a escala de vagas. */
-export function resolverSenioridadeDoCandidato(nivel: NivelExperiencia): NivelSenioridadeVaga {
-  return mapaNivelExperienciaParaSenioridadeVaga[nivel] ?? 'Júnior'
 }
 
 /**

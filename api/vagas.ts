@@ -2,6 +2,7 @@ import { normalizarVagaJSearch } from '../src/services/normalizers/jSearchJobNor
 import type { JSearchRawJob, JSearchSearchResponse } from '../src/services/providers/jsearch/types'
 import type { VagaNormalizada } from '../src/types/vaga'
 import { obterAreaPorId } from '../src/data/areasProfissionais'
+import { montarQueryJSearch } from '../src/services/jsearchQueryService'
 
 /**
  * GET /api/vagas
@@ -65,8 +66,7 @@ export default async function handler(request: Request): Promise<Response> {
   const pagina = Number.isFinite(paginaBruta) && paginaBruta > 0 ? Math.min(Math.floor(paginaBruta), 5) : 1
 
   const areaNome = areaId ? obterAreaPorId(areaId)?.nome : undefined
-  const termosBusca = [cargo, termo, areaNome].filter(Boolean).join(' ') || 'vaga'
-  const query = cidade ? `${termosBusca} em ${cidade}` : termosBusca
+  const query = montarQueryJSearch({ cargo, termo, areaNome, cidade })
 
   const params = new URLSearchParams({
     query,

@@ -1,6 +1,5 @@
 import type { Candidato } from '../types/models'
-import type { ItemPadraoMercado } from '../types/vaga'
-import { jobAggregatorService } from './jobAggregatorService'
+import type { VagaNormalizada, ItemPadraoMercado } from '../types/vaga'
 import { resolverAreaDoCandidato } from './areaBridgeService'
 import { normalizarTexto } from '../utils/texto'
 
@@ -8,13 +7,12 @@ export type { ItemPadraoMercado }
 
 export const marketPatternService = {
   /**
-   * Calcula, entre as vagas da mesma área profissional do candidato (já
-   * resolvida via areaBridgeService, não mais um enum fechado de tecnologia),
-   * quais requisitos aparecem com mais frequência — e se o candidato já
-   * possui cada um. Funciona para qualquer área, não só tecnologia.
+   * Calcula, entre as vagas já buscadas para a análise atual (recebidas como
+   * parâmetro — NUNCA busca de novo aqui), quais requisitos aparecem com mais
+   * frequência na área do candidato, e se ele já os possui. Reaproveitar a
+   * mesma lista evita uma segunda chamada real à fonte de vagas por análise.
    */
-  async calcularPadraoMercado(candidato: Candidato): Promise<ItemPadraoMercado[]> {
-    const { vagas } = await jobAggregatorService.buscar({})
+  calcularPadraoMercado(candidato: Candidato, vagas: VagaNormalizada[]): ItemPadraoMercado[] {
     const areaCandidato = resolverAreaDoCandidato(candidato)
 
     const vagasDaArea = areaCandidato ? vagas.filter((vaga) => vaga.areaId === areaCandidato.id) : []

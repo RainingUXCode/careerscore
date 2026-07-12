@@ -49,7 +49,7 @@ function App() {
       : []
     const { recomendacoes, fontesComFalha, codigosErro, usouFallback, deCache, consultadoEm, totalVagasEncontradas, totalVagasRecentes } =
       await vagaRecomendacaoService.gerarRecomendacoes(candidatoAtual)
-    const padraoMercado = await marketPatternService.calcularPadraoMercado(candidatoAtual)
+    const padraoMercado = marketPatternService.calcularPadraoMercado(candidatoAtual, recomendacoes.map((r) => r.vaga))
     const atsAnalise = await careerAnalysisEngine.analisarAts({
       candidato: candidatoAtual,
       textoCurriculo: textoExtraido.texto,
@@ -80,7 +80,7 @@ function App() {
     if (!resultado) return
     const { recomendacoes, fontesComFalha, codigosErro, usouFallback, deCache, consultadoEm, totalVagasEncontradas, totalVagasRecentes } =
       await vagaRecomendacaoService.gerarRecomendacoes(resultado.candidato, { forcarAtualizacao: true })
-    const padraoMercado = await marketPatternService.calcularPadraoMercado(resultado.candidato)
+    const padraoMercado = marketPatternService.calcularPadraoMercado(resultado.candidato, recomendacoes.map((r) => r.vaga))
     setResultado({
       ...resultado,
       recomendacoes,

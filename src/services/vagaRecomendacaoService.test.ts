@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Modalidade, NomeArea, TipoCompetencia } from '../types/enums'
 import { criarCandidatoBase, criarVagaBase } from '../test/fixtures'
 import { jobAggregatorService } from './jobAggregatorService'
-import { construirBuscasObjetivo, construirFiltrosBusca, montarTermosBuscaObjetivo, vagaRecomendacaoService } from './vagaRecomendacaoService'
+import { construirBuscaObjetivo, construirFiltrosBusca, vagaRecomendacaoService } from './vagaRecomendacaoService'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -17,13 +17,15 @@ describe('construirFiltrosBusca', () => {
         modalidadesPreferidas: [Modalidade.REMOTO],
         objetivoProfissional: {
           modo: 'definido',
-          opcoes: [{
-            id: 'obj-1',
-            cargoOuArea: 'Estágio em Front-end',
-            nivelAlvo: 'Estágio',
-            tiposContratoAceitos: ['Estágio', 'CLT'],
-            modalidadesAceitas: [Modalidade.REMOTO],
-          }],
+          opcoes: [
+            {
+              id: 'obj-1',
+              cargoOuArea: 'Estágio em Front-end',
+              nivelAlvo: 'Estágio',
+              tiposContratoAceitos: ['Estágio', 'CLT'],
+              modalidadesAceitas: [Modalidade.REMOTO],
+            },
+          ],
         },
         competencias: [
           { idCompetencia: 'comp-1', nome: 'React', tipo: TipoCompetencia.TECNICA },
@@ -40,22 +42,27 @@ describe('construirFiltrosBusca', () => {
       pais: 'Brasil',
       modalidade: Modalidade.REMOTO,
     })
-    expect(filtros.palavraChave).toContain('estágio')
+    // palavraChave só carrega o indicador de nível — nunca repete cargo, área ou competência
+    expect(filtros.palavraChave).toBe('estágio')
+    expect(filtros.palavraChave).not.toContain('React')
+    expect(filtros.palavraChave).not.toContain('Figma')
   })
 
-  it('usa o objetivo definido na query e nao substitui pelo cargo anterior', () => {
+  it('usa apenas o objetivo principal (primeira opção) e não o cargo anterior', () => {
     const candidato = criarCandidatoBase({
       cidade: 'Recife',
       estado: 'PE',
       objetivoProfissional: {
         modo: 'definido',
-        opcoes: [{
-          id: 'obj-1',
-          cargoOuArea: 'Assistente de RH',
-          nivelAlvo: 'Assistente',
-          tiposContratoAceitos: ['CLT'],
-          modalidadesAceitas: [Modalidade.PRESENCIAL],
-        }],
+        opcoes: [
+          {
+            id: 'obj-1',
+            cargoOuArea: 'Assistente de RH',
+            nivelAlvo: 'Assistente',
+            tiposContratoAceitos: ['CLT'],
+            modalidadesAceitas: [Modalidade.PRESENCIAL],
+          },
+        ],
       },
       competencias: [{ idCompetencia: 'comp-1', nome: 'Excel', tipo: TipoCompetencia.TECNICA }],
       experiencias: [
@@ -72,11 +79,30 @@ describe('construirFiltrosBusca', () => {
 
     const filtros = construirFiltrosBusca(candidato)
     expect(filtros.cargo).toBe('Assistente de RH')
+    expect(filtros.cargo).not.toBe('Atendente')
     expect(filtros.cidade).toBe('Recife')
     expect(filtros.estado).toBe('PE')
     expect(filtros.modalidade).toBe(Modalidade.PRESENCIAL)
-    expect(montarTermosBuscaObjetivo(candidato)).toContain('Assistente de RH')
-    expect(montarTermosBuscaObjetivo(candidato)).not.toContain('Atendente')
+  })
+
+  it('não inclui a primeira competência técnica na query (não deve restringir a busca)', () => {
+    const filtros = construirFiltrosBusca(
+      criarCandidatoBase({
+        objetivoProfissional: {
+          modo: 'definido',
+          opcoes: [
+            {
+              id: 'obj-1',
+              cargoOuArea: 'Desenvolvedor Front-end',
+              tiposContratoAceitos: ['CLT'],
+              modalidadesAceitas: [Modalidade.REMOTO],
+            },
+          ],
+        },
+        competencias: [{ idCompetencia: 'comp-1', nome: 'React', tipo: TipoCompetencia.TECNICA }],
+      }),
+    )
+    expect(filtros.palavraChave ?? '').not.toContain('React')
   })
 
   it('usuario sem experiencia busca vagas pelo objetivo definido', () => {
@@ -85,13 +111,15 @@ describe('construirFiltrosBusca', () => {
         experiencias: [],
         objetivoProfissional: {
           modo: 'definido',
-          opcoes: [{
-            id: 'obj-1',
-            cargoOuArea: 'Auxiliar de Logística',
-            nivelAlvo: 'Auxiliar',
-            tiposContratoAceitos: ['CLT'],
-            modalidadesAceitas: [Modalidade.PRESENCIAL, Modalidade.HIBRIDO],
-          }],
+          opcoes: [
+            {
+              id: 'obj-1',
+              cargoOuArea: 'Auxiliar de Logística',
+              nivelAlvo: 'Auxiliar',
+              tiposContratoAceitos: ['CLT'],
+              modalidadesAceitas: [Modalidade.PRESENCIAL, Modalidade.HIBRIDO],
+            },
+          ],
         },
       }),
     )
@@ -105,13 +133,15 @@ describe('construirFiltrosBusca', () => {
       criarCandidatoBase({
         objetivoProfissional: {
           modo: 'definido',
-          opcoes: [{
-            id: 'obj-1',
-            cargoOuArea: 'Analista de Marketing',
-            nivelAlvo: 'Júnior',
-            tiposContratoAceitos: ['CLT', 'PJ'],
-            modalidadesAceitas: [Modalidade.REMOTO, Modalidade.HIBRIDO],
-          }],
+          opcoes: [
+            {
+              id: 'obj-1',
+              cargoOuArea: 'Analista de Marketing',
+              nivelAlvo: 'Júnior',
+              tiposContratoAceitos: ['CLT', 'PJ'],
+              modalidadesAceitas: [Modalidade.REMOTO, Modalidade.HIBRIDO],
+            },
+          ],
         },
       }),
     )
@@ -119,64 +149,99 @@ describe('construirFiltrosBusca', () => {
     expect(filtros.modalidade).toBeUndefined()
   })
 
-  it('busca ampla funciona sem objetivo definido', () => {
+  it('modo exploração monta uma única busca ampla com o termo padrão de primeiro emprego', () => {
     const candidato = criarCandidatoBase({
       objetivoProfissional: {
         modo: 'exploracao',
         opcoes: [],
-        preferenciasExploracao: {
-          interesses: ['administrativo'],
-        },
+        preferenciasExploracao: { interesses: ['administrativo'] },
       },
     })
 
-    const buscas = construirBuscasObjetivo(candidato)
+    const busca = construirBuscaObjetivo(candidato)
 
-    expect(buscas.length).toBeGreaterThan(1)
-    expect(buscas.every((busca) => busca.buscaAmpla)).toBe(true)
-    expect(buscas[0].filtros.cargo).toBeUndefined()
-    expect(buscas.map((busca) => busca.filtros.palavraChave).join(' ')).toContain('primeiro emprego')
-    expect(buscas.map((busca) => busca.filtros.palavraChave).join(' ')).toContain('estágio')
+    expect(busca.buscaAmpla).toBe(true)
+    expect(busca.filtros.cargo).toBeUndefined()
+    expect(busca.filtros.palavraChave).toBe('primeiro emprego assistente auxiliar estágio')
   })
 
-  it('modo definido executa buscas separadas para ate 3 objetivos na ordem informada', () => {
-    const buscas = construirBuscasObjetivo(
-      criarCandidatoBase({
-        objetivoProfissional: {
-          modo: 'definido',
-          opcoes: [
-            { id: '1', cargoOuArea: 'Assistente de RH', tiposContratoAceitos: ['CLT'], modalidadesAceitas: [Modalidade.PRESENCIAL] },
-            { id: '2', cargoOuArea: 'Auxiliar Administrativo', tiposContratoAceitos: ['CLT'], modalidadesAceitas: [Modalidade.REMOTO, Modalidade.HIBRIDO] },
-          ],
-        },
-      }),
-    )
+  it('modo definido com múltiplas opções usa só a primeira — as demais ficam salvas para uso futuro', () => {
+    const opcoes = [
+      { id: '1', cargoOuArea: 'Assistente de RH', tiposContratoAceitos: ['CLT' as const], modalidadesAceitas: [Modalidade.PRESENCIAL] },
+      { id: '2', cargoOuArea: 'Auxiliar Administrativo', tiposContratoAceitos: ['CLT' as const], modalidadesAceitas: [Modalidade.REMOTO, Modalidade.HIBRIDO] },
+    ]
+    const candidato = criarCandidatoBase({ objetivoProfissional: { modo: 'definido', opcoes } })
 
-    expect(buscas).toHaveLength(2)
-    expect(buscas[0].objetivoOrigem).toBe('Assistente de RH')
-    expect(buscas[0].filtros.modalidade).toBe(Modalidade.PRESENCIAL)
-    expect(buscas[1].filtros.modalidade).toBeUndefined()
+    const busca = construirBuscaObjetivo(candidato)
+
+    expect(busca.objetivoOrigem).toBe('Assistente de RH')
+    expect(busca.filtros.modalidade).toBe(Modalidade.PRESENCIAL)
+    // as opções alternativas continuam intactas no candidato — só não alimentam a busca automática
+    expect(candidato.objetivoProfissional.opcoes).toHaveLength(2)
+    expect(candidato.objetivoProfissional.opcoes[1].cargoOuArea).toBe('Auxiliar Administrativo')
   })
 
-  it('mantem vagas com ressalvas para a faixa de monitoramento', async () => {
-    const vagaComRessalva = criarVagaBase({
-      id: 'vaga-ressalva',
+  it('faz exatamente uma chamada ao agregador por análise', async () => {
+    const espiao = vi.spyOn(jobAggregatorService, 'buscar').mockResolvedValue({
+      vagas: [],
+      fontesComFalha: [],
+      codigosErro: [],
+      usouFallback: false,
+      deCache: false,
+      consultadoEm: '2026-07-11T12:00:00.000Z',
+    })
+
+    await vagaRecomendacaoService.gerarRecomendacoes(criarCandidatoBase())
+
+    expect(espiao).toHaveBeenCalledTimes(1)
+  })
+
+  it('atualizar vagas (forcarAtualizacao) também faz apenas uma chamada', async () => {
+    const espiao = vi.spyOn(jobAggregatorService, 'buscar').mockResolvedValue({
+      vagas: [],
+      fontesComFalha: [],
+      codigosErro: [],
+      usouFallback: false,
+      deCache: false,
+      consultadoEm: '2026-07-11T12:00:00.000Z',
+    })
+
+    await vagaRecomendacaoService.gerarRecomendacoes(criarCandidatoBase(), { forcarAtualizacao: true })
+
+    expect(espiao).toHaveBeenCalledTimes(1)
+    expect(espiao).toHaveBeenCalledWith(expect.anything(), { forcarAtualizacao: true })
+  })
+
+  it('preserva vaga com compatibilidade abaixo de 55% quando não há impeditivo real', async () => {
+    const vagaCompatibilidadeBaixa = criarVagaBase({
+      id: 'vaga-baixa',
       fonte: { id: 'jsearch', nome: 'JSearch', tipo: 'real' },
       areaId: 'tecnologia',
-      modalidade: Modalidade.REMOTO,
-      modalidadeInformada: true,
-      requisitosObrigatorios: [
-        {
-          id: 'req-1',
-          nome: 'Python',
-          tipo: 'competencia_tecnica',
-          obrigatorio: true,
-        },
-      ],
-      requisitosDesejaveis: [],
     })
     vi.spyOn(jobAggregatorService, 'buscar').mockResolvedValue({
-      vagas: [vagaComRessalva],
+      vagas: [vagaCompatibilidadeBaixa],
+      fontesComFalha: [],
+      codigosErro: [],
+      usouFallback: false,
+      deCache: false,
+      consultadoEm: '2026-07-11T12:00:00.000Z',
+    })
+
+    const resultado = await vagaRecomendacaoService.gerarRecomendacoes(criarCandidatoBase({ competencias: [] }))
+
+    expect(resultado.recomendacoes).toHaveLength(1)
+  })
+
+  it('exclui vaga com impeditivo real (localização presencial incompatível)', async () => {
+    const vagaImpeditivo = criarVagaBase({
+      id: 'vaga-impeditivo',
+      fonte: { id: 'jsearch', nome: 'JSearch', tipo: 'real' },
+      modalidade: Modalidade.PRESENCIAL,
+      modalidadeInformada: true,
+      localizacao: { cidade: 'Manaus', estado: 'AM', pais: 'Brasil' },
+    })
+    vi.spyOn(jobAggregatorService, 'buscar').mockResolvedValue({
+      vagas: [vagaImpeditivo],
       fontesComFalha: [],
       codigosErro: [],
       usouFallback: false,
@@ -185,14 +250,10 @@ describe('construirFiltrosBusca', () => {
     })
 
     const resultado = await vagaRecomendacaoService.gerarRecomendacoes(
-      criarCandidatoBase({
-        competencias: [{ idCompetencia: 'comp-1', nome: 'React', tipo: TipoCompetencia.TECNICA }],
-      }),
+      criarCandidatoBase({ cidade: 'João Pessoa', estado: 'PB' }),
     )
 
-    expect(resultado.recomendacoes).toHaveLength(1)
-    expect(resultado.recomendacoes[0].compatibilidade.compatibilidadeGeral).toBeGreaterThanOrEqual(55)
-    expect(resultado.recomendacoes[0].compatibilidade.compatibilidadeGeral).toBeLessThan(70)
+    expect(resultado.recomendacoes).toHaveLength(0)
   })
 
   it('confianca fica menor em recomendacao ampla sem reduzir compatibilidade', async () => {
@@ -219,15 +280,12 @@ describe('construirFiltrosBusca', () => {
         objetivoProfissional: {
           modo: 'exploracao',
           opcoes: [],
-          preferenciasExploracao: {
-            interesses: ['administrativo', 'organizar documentos'],
-          },
+          preferenciasExploracao: { interesses: ['administrativo', 'organizar documentos'] },
         },
       }),
     )
 
     expect(resultado.recomendacoes[0].buscaAmpla).toBe(true)
-    expect(resultado.recomendacoes[0].compatibilidade.compatibilidadeGeral).toBeGreaterThanOrEqual(55)
     expect(resultado.recomendacoes[0].compatibilidade.confiabilidade.resumo).toContain('Busca ampla')
   })
 })

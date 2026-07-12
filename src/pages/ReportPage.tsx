@@ -21,6 +21,7 @@ import { obterRecursosEstudo } from '../data/recursosEstudo'
 import { obterPlataformasRecomendadas } from '../data/plataformasPorArea'
 import { resolverAreaDoCandidato } from '../services/areaBridgeService'
 import { mensagemFallbackJSearch } from '../services/vagasMensagemService'
+import { faixasCompatibilidade } from '../services/faixaCompatibilidadeService'
 import { rotuloNivelAtual } from '../services/nivelAtualService'
 
 type AbaRelatorio = 'perfil' | 'vagas' | 'plano' | 'curriculo'
@@ -380,8 +381,14 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
         <div className="print-reveal" data-active={abaAtiva === 'vagas' ? 'true' : 'false'}>
           <div className="grid gap-5">
             {(() => {
-              const vagasAgora = recomendacoes.filter((r) => r.compatibilidade.compatibilidadeGeral >= 80)
-              const vagasMonitorar = recomendacoes.filter((r) => r.compatibilidade.compatibilidadeGeral < 80)
+              const faixas = faixasCompatibilidade
+              const toneParaClasses: Record<string, string> = {
+                high: 'border-[rgba(34,197,94,0.25)] bg-[rgba(34,197,94,0.08)] text-[var(--color-score-high)]',
+                primary: 'border-[rgba(20,184,166,0.25)] bg-[rgba(20,184,166,0.08)] text-[var(--color-primary)]',
+                mid: 'border-[rgba(245,158,11,0.25)] bg-[rgba(245,158,11,0.08)] text-[var(--color-score-mid)]',
+                low: 'border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.08)] text-[var(--color-score-low)]',
+              }
+
               const padraoMercado = resultado.padraoMercado ?? []
               const recursos = obterRecursosEstudo(analise.competenciasFaltantes)
               const areaCandidato = resolverAreaDoCandidato(candidato)
@@ -411,7 +418,7 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                           {' · '}
                           {totalVagasRecentes} recente{totalVagasRecentes === 1 ? '' : 's'}
                           {' · '}
-                          {recomendacoes.length} recomendada{recomendacoes.length === 1 ? '' : 's'}
+                          {recomendacoes.length} avaliada{recomendacoes.length === 1 ? '' : 's'} sem impeditivo
                           {' · '}
                           Resultados consultados em {new Date(meta.consultadoEm).toLocaleString('pt-BR')}
                           {meta.deCache ? ' (em cache)' : ''}
@@ -440,7 +447,7 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
 
                   {meta && meta.codigosErro.length > 0 && (
                     <div className="rounded-xl border border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.08)] px-4 py-3 text-sm text-[var(--color-score-low)]">
-                      {mensagemFallbackJSearch(meta.codigosErro)}
+                      {mensagemFallbackJSearch(meta.codigosErro, temVagasDemonstracao)}
                     </div>
                   )}
 
@@ -451,51 +458,43 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                     </div>
                   )}
 
-                  {temVagasReais ? (
-                    <div className="rounded-xl border border-[rgba(34,197,94,0.25)] bg-[rgba(34,197,94,0.08)] px-4 py-3 text-sm text-[var(--color-score-high)]">
-                      <strong>Alta aderencia para candidatura:</strong> vagas reais recentes, dentro da sua modalidade e com alta aderencia ao seu perfil.
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-[rgba(34,197,94,0.25)] bg-[rgba(34,197,94,0.08)] px-4 py-3 text-sm text-[var(--color-score-high)]">
-                      <strong>Alta aderencia em demonstracao:</strong> exemplos usados para validar compatibilidade. Nao sao oportunidades para candidatura real.
-                    </div>
-                  )}
-                  {vagasAgora.length === 0 ? (
-                    <ReportCard title="Nenhuma vaga de alta aderência ainda">
+                  {recomendacoes.length === 0 && (
+                    <ReportCard title="Nenhuma vaga disponível para esta consulta">
                       <p className="text-sm leading-relaxed text-[var(--color-ink-soft)]">
-                        {recomendacoes.length === 0 && totalVagasRecentes > 0 ? (
-                          `${totalVagasRecentes} vaga${totalVagasRecentes === 1 ? '' : 's'} recente${totalVagasRecentes === 1 ? '' : 's'} foram avaliadas, mas nenhuma atingiu o corte de 70% de compatibilidade para recomendacao.`
-                        ) : totalVagasEncontradas === 0 ? (
-                          'A fonte de vagas nao retornou oportunidades para os filtros atuais nesta consulta.'
-                        ) : (
-                          <>
-                        Nenhuma vaga atingiu 80% de compatibilidade ainda. Veja abaixo as que valem monitorar enquanto seu perfil evolui.
-                          </>
-                        )}
+                        {totalVagasEncontradas === 0
+                          ? 'A fonte de vagas não retornou oportunidades para os filtros atuais nesta consulta.'
+                          : totalVagasRecentes === 0
+                            ? `${totalVagasEncontradas} vaga${totalVagasEncontradas === 1 ? '' : 's'} foram encontradas, mas nenhuma é recente (últimos 45 dias).`
+                            : `${totalVagasRecentes} vaga${totalVagasRecentes === 1 ? '' : 's'} recente${totalVagasRecentes === 1 ? '' : 's'} foram avaliadas, mas todas tinham algum impeditivo real (localização, licença, idioma ou formação obrigatória ausente).`}
                       </p>
                     </ReportCard>
-                  ) : (
-                    vagasAgora.map((recomendacao) => <VagaCard key={recomendacao.vaga.id} recomendacao={recomendacao} />)
                   )}
 
-                  <div className="mt-2 rounded-xl border border-[rgba(245,158,11,0.25)] bg-[rgba(245,158,11,0.08)] px-4 py-3 text-sm text-[var(--color-score-mid)]">
-                    <strong>Fique de olho:</strong> boa aderência, mas vale reforçar algum requisito antes ou acompanhar a vaga.
-                  </div>
-                  {vagasMonitorar.length === 0 ? (
-                    <ReportCard title="Nada para monitorar no momento">
-                      <p className="text-sm leading-relaxed text-[var(--color-ink-soft)]">
-                        {recomendacoes.length === 0 ? (
-                          'Nenhuma vaga ficou na faixa de monitoramento desta consulta.'
+                  {faixas.map((faixa) => {
+                    const vagasDaFaixa = recomendacoes.filter(
+                      (r) => r.compatibilidade.compatibilidadeGeral >= faixa.min && r.compatibilidade.compatibilidadeGeral <= faixa.max,
+                    )
+                    if (recomendacoes.length === 0) return null
+                    const usaTituloDemo = !temVagasReais && temVagasDemonstracao
+
+                    return (
+                      <div key={faixa.chave} className="grid gap-3">
+                        <div className={`rounded-xl border px-4 py-3 text-sm ${toneParaClasses[faixa.tone]}`}>
+                          <strong>{usaTituloDemo ? faixa.tituloDemo : faixa.tituloReal}:</strong>{' '}
+                          {usaTituloDemo ? faixa.descricaoDemo : faixa.descricaoReal}
+                        </div>
+                        {vagasDaFaixa.length === 0 ? (
+                          <ReportCard title={`Nenhuma vaga nesta faixa ainda`}>
+                            <p className="text-sm leading-relaxed text-[var(--color-ink-soft)]">
+                              Nenhuma das {recomendacoes.length} vaga{recomendacoes.length === 1 ? '' : 's'} avaliada{recomendacoes.length === 1 ? '' : 's'} ficou entre {faixa.max === Infinity ? `${faixa.min}%+` : `${faixa.min}% e ${faixa.max}%`} de compatibilidade nesta consulta.
+                            </p>
+                          </ReportCard>
                         ) : (
-                          <>
-                        Todas as vagas encontradas já estão na faixa de candidatura imediata.
-                          </>
+                          vagasDaFaixa.map((recomendacao) => <VagaCard key={recomendacao.vaga.id} recomendacao={recomendacao} />)
                         )}
-                      </p>
-                    </ReportCard>
-                  ) : (
-                    vagasMonitorar.map((recomendacao) => <VagaCard key={recomendacao.vaga.id} recomendacao={recomendacao} />)
-                  )}
+                      </div>
+                    )
+                  })}
 
                   <ReportCard title="Onde monitorar vagas agora">
                     <div className="flex flex-col gap-2">

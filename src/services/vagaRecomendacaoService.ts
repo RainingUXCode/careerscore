@@ -2,14 +2,14 @@ import type { Candidato } from '../types/models'
 import type { FiltroBuscaVagas } from '../types/jobProvider'
 import type { VagaNormalizada } from '../types/vaga'
 import type { VagaRecomendada } from '../types/compatibilidade'
-import { TipoCompetencia } from '../types/enums'
 import { jobAggregatorService, type OpcoesBuscaVagas } from './jobAggregatorService'
 import { calcularCompatibilidade } from './compatibilidadeService'
 import { resolverAreaDoCandidato } from './areaBridgeService'
 import { termoBuscaContratoInferido } from './objetivoContratoService'
 
-const COMPATIBILIDADE_MINIMA = 55
 const DIAS_MAXIMOS_VAGA_RECENTE = 45
+/** Termo único de busca ampla quando não há objetivo definido nem evidência de área. */
+const TERMO_EXPLORACAO_PADRAO = 'primeiro emprego assistente auxiliar estágio'
 
 export interface ResultadoRecomendacoes {
   recomendacoes: VagaRecomendada[]
@@ -37,41 +37,9 @@ function textoOuUndefined(valor: string | undefined): string | undefined {
 }
 
 function obterCargoBusca(candidato: Candidato): string | undefined {
-  const objetivo = candidato.objetivoProfissional
-  const cargoObjetivo = objetivo?.modo === 'definido'
-    ? textoOuUndefined(objetivo.opcoes[0]?.cargoOuArea)
-    : undefined
-  if (cargoObjetivo) return cargoObjetivo
-
   const experienciaAtual = candidato.experiencias.find((experiencia) => experiencia.empregoAtual && experiencia.cargo.trim())
   const experienciaComCargo = experienciaAtual ?? candidato.experiencias.find((experiencia) => experiencia.cargo.trim())
   return textoOuUndefined(experienciaComCargo?.cargo)
-}
-
-function competenciaPrincipal(candidato: Candidato): string | undefined {
-  return textoOuUndefined(candidato.competencias.find((competencia) => competencia.tipo === TipoCompetencia.TECNICA)?.nome)
-}
-
-export function montarTermosBuscaObjetivo(candidato: Candidato): string {
-  const area = resolverAreaDoCandidato(candidato)
-  const objetivo = candidato.objetivoProfissional
-
-  if (objetivo?.modo === 'exploracao') {
-    return ['estágio', 'trainee', 'primeiro emprego', 'assistente', 'auxiliar', area?.nome]
-      .filter(Boolean)
-      .join(' ')
-  }
-
-  const cargo = textoOuUndefined(objetivo?.opcoes[0]?.cargoOuArea) ?? obterCargoBusca(candidato)
-  const conhecimentoPrincipal = competenciaPrincipal(candidato)
-  const termoContrato = termoBuscaContratoInferido(objetivo?.opcoes[0]?.nivelAlvo)
-  return [cargo, termoContrato, area?.nome, conhecimentoPrincipal].filter(Boolean).join(' ').trim() || 'vaga'
-}
-
-export interface BuscaObjetivo {
-  filtros: FiltroBuscaVagas
-  objetivoOrigem?: string
-  buscaAmpla?: boolean
 }
 
 function modalidadeUnica(modalidades: Candidato['modalidadesPreferidas']): Candidato['modalidadesPreferidas'][number] | undefined {
@@ -88,59 +56,73 @@ function filtroBase(candidato: Candidato): Pick<FiltroBuscaVagas, 'areaId' | 'ci
   }
 }
 
-export function construirBuscasObjetivo(candidato: Candidato): BuscaObjetivo[] {
-  const area = resolverAreaDoCandidato(candidato)
-  const objetivo = candidato.objetivoProfissional
+export interface BuscaObjetivo {
+  filtros: FiltroBuscaVagas
+  objetivoOrigem?: string
+  buscaAmpla: boolean
+}
+
+/**
+ * Monta EXATAMENTE uma busca automática por análise — nunca várias em
+ * paralelo, para preservar a cota gratuita da fonte real de vagas.
+ *
+ * `cargo` e `areaId` vão como filtros estruturados; `palavraChave` carrega só
+ * um complemento que ainda não está representado em cargo/área (ex: indicador
+ * de nível "estágio"/"jovem aprendiz") — nunca repete cargo, área, nem
+ * adiciona a competência técnica principal (isso restringiria demais a busca
+ * externa). Quem monta a query de texto final é `api/vagas.ts`, via
+ * `montarQueryJSearch` — esta função só decide os filtros estruturados.
+ *
+ * As demais opções de objetivo (`objetivoProfissional.opcoes[1]`, `[2]`...)
+ * continuam salvas no candidato para uso futuro; só não alimentam a busca
+ * automática nesta etapa.
+ */
+export function construirBuscaObjetivo(candidato: Candidato): BuscaObjetivo {
   const base = filtroBase(candidato)
+  const objetivo = candidato.objetivoProfissional
+
+  if (objetivo?.modo === 'definido' && objetivo.opcoes.length > 0) {
+    const principal = objetivo.opcoes[0]
+    return {
+      filtros: {
+        ...base,
+        cargo: textoOuUndefined(principal.cargoOuArea),
+        palavraChave: termoBuscaContratoInferido(principal.nivelAlvo),
+        modalidade: modalidadeUnica(principal.modalidadesAceitas),
+      },
+      objetivoOrigem: principal.cargoOuArea,
+      buscaAmpla: false,
+    }
+  }
 
   if (objetivo?.modo === 'exploracao') {
-    const termosAmplos = [
-      'estágio trainee jovem aprendiz',
-      'primeiro emprego assistente auxiliar sem experiência',
-      'analista desenvolvedor',
-      'atendimento administrativo comercial operações',
-    ]
-    const preferencias = objetivo.preferenciasExploracao.interesses.slice(0, 1)
-
-    return [...termosAmplos, ...preferencias].slice(0, 4).map((termo) => ({
+    const area = resolverAreaDoCandidato(candidato)
+    return {
       filtros: {
         ...base,
         cargo: undefined,
-        palavraChave: [termo, area?.nome].filter(Boolean).join(' '),
-        modalidade: undefined,
+        palavraChave: TERMO_EXPLORACAO_PADRAO,
+        modalidade: modalidadeUnica(candidato.modalidadesPreferidas),
       },
-      objetivoOrigem: 'Exploração profissional',
+      objetivoOrigem: area ? `Exploração profissional — ${area.nome}` : 'Exploração profissional',
       buscaAmpla: true,
-    }))
+    }
   }
 
-  if (objetivo?.modo === 'definido' && objetivo.opcoes.length > 0) {
-    return objetivo.opcoes.slice(0, 3).map((opcao) => ({
-      filtros: {
-        ...base,
-        cargo: textoOuUndefined(opcao.cargoOuArea),
-        palavraChave: [opcao.cargoOuArea, termoBuscaContratoInferido(opcao.nivelAlvo), area?.nome, competenciaPrincipal(candidato)].filter(Boolean).join(' '),
-        modalidade: modalidadeUnica(opcao.modalidadesAceitas),
-      },
-      objetivoOrigem: opcao.cargoOuArea,
-      buscaAmpla: false,
-    }))
-  }
-
-  return [{
+  const cargo = obterCargoBusca(candidato)
+  return {
     filtros: {
       ...base,
-      cargo: obterCargoBusca(candidato),
-      palavraChave: textoOuUndefined(montarTermosBuscaObjetivo(candidato)),
+      cargo,
       modalidade: modalidadeUnica(candidato.modalidadesPreferidas),
     },
-    objetivoOrigem: obterCargoBusca(candidato),
+    objetivoOrigem: cargo,
     buscaAmpla: false,
-  }]
+  }
 }
 
 export function construirFiltrosBusca(candidato: Candidato): FiltroBuscaVagas {
-  return construirBuscasObjetivo(candidato)[0]?.filtros ?? { palavraChave: 'vaga', pais: 'Brasil' }
+  return construirBuscaObjetivo(candidato).filtros
 }
 
 function calcularAderenciaConhecimentos(candidato: Candidato, vaga: VagaNormalizada): number {
@@ -154,41 +136,15 @@ function calcularAderenciaConhecimentos(candidato: Candidato, vaga: VagaNormaliz
 
 export const vagaRecomendacaoService = {
   async gerarRecomendacoes(candidato: Candidato, opcoes: OpcoesBuscaVagas = {}): Promise<ResultadoRecomendacoes> {
-    const buscas = construirBuscasObjetivo(candidato)
-    const resultados = await Promise.all(
-      buscas.map(async (busca) => ({
-        busca,
-        resultado: await jobAggregatorService.buscar(busca.filtros, opcoes),
-      })),
-    )
+    const busca = construirBuscaObjetivo(candidato)
+    const resultado = await jobAggregatorService.buscar(busca.filtros, opcoes)
 
-    const fontesComFalha = [...new Set(resultados.flatMap(({ resultado }) => resultado.fontesComFalha))]
-    const codigosErro = [...new Set(resultados.flatMap(({ resultado }) => resultado.codigosErro))]
-    const usouFallback = resultados.some(({ resultado }) => resultado.usouFallback)
-    const deCache = resultados.every(({ resultado }) => resultado.deCache)
-    const consultadoEm = resultados[0]?.resultado.consultadoEm ?? new Date().toISOString()
-    const origemPorVaga = new Map<string, BuscaObjetivo>()
-    const vagasMap = new Map<string, VagaNormalizada>()
+    const vagasRecentes = resultado.vagas.filter(vagaRecente)
 
-    for (const { busca, resultado } of resultados) {
-      for (const vaga of resultado.vagas) {
-        const chave = vaga.urlOriginal ?? vaga.idExterno ?? vaga.id
-        if (!vagasMap.has(chave)) {
-          vagasMap.set(chave, vaga)
-          origemPorVaga.set(chave, busca)
-        }
-      }
-    }
-
-    const vagas = Array.from(vagasMap.values())
-
-    const vagasRecentes = vagas.filter(vagaRecente)
     const recomendacoes = vagasRecentes
       .map((vaga) => {
-        const chave = vaga.urlOriginal ?? vaga.idExterno ?? vaga.id
-        const origem = origemPorVaga.get(chave)
         const compatibilidade = calcularCompatibilidade(candidato, vaga)
-        const compatibilidadeAjustada = origem?.buscaAmpla
+        const compatibilidadeAjustada = busca.buscaAmpla
           ? {
               ...compatibilidade,
               confiabilidade: {
@@ -201,11 +157,15 @@ export const vagaRecomendacaoService = {
         return {
           vaga,
           compatibilidade: compatibilidadeAjustada,
-          objetivoOrigem: origem?.objetivoOrigem,
-          buscaAmpla: origem?.buscaAmpla,
+          objetivoOrigem: busca.objetivoOrigem,
+          buscaAmpla: busca.buscaAmpla,
         }
       })
-      .filter((item) => item.compatibilidade.compatibilidadeGeral >= COMPATIBILIDADE_MINIMA)
+      // Nunca excluir só por nota baixa — só por impeditivos reais que o motor
+      // já calcula (idioma eliminatório, licença obrigatória ausente,
+      // localização objetivamente incompatível). Vagas encerradas já foram
+      // removidas antes, no agregador.
+      .filter((item) => item.compatibilidade.impeditivos.length === 0)
       .sort(
         (a, b) =>
           b.compatibilidade.compatibilidadeGeral - a.compatibilidade.compatibilidadeGeral ||
@@ -214,12 +174,12 @@ export const vagaRecomendacaoService = {
 
     return {
       recomendacoes,
-      fontesComFalha,
-      codigosErro,
-      usouFallback,
-      deCache,
-      consultadoEm,
-      totalVagasEncontradas: vagas.length,
+      fontesComFalha: resultado.fontesComFalha,
+      codigosErro: resultado.codigosErro,
+      usouFallback: resultado.usouFallback,
+      deCache: resultado.deCache,
+      consultadoEm: resultado.consultadoEm,
+      totalVagasEncontradas: resultado.vagas.length,
       totalVagasRecentes: vagasRecentes.length,
     }
   },
