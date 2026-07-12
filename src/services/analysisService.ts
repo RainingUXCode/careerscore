@@ -5,6 +5,7 @@ import { calcularDuracaoMeses } from '../utils/formatters'
 import { gerarId } from '../utils/id'
 import type { GithubAnalise, ContextoExterno } from '../types/externo'
 import { categoriasPontuacao } from './benchmarkService'
+import { inferirNivelAtual, rotuloNivelAtual } from './nivelAtualService'
 
 export type { ContextoExterno }
 
@@ -14,8 +15,11 @@ interface Pontuacao {
 }
 
 function candidatoEmInicioDeCarreira(candidato: Candidato): boolean {
+  const nivelAtual = inferirNivelAtual(candidato)
   return candidato.escolaridades.some((e) => e.status === StatusCurso.CURSANDO)
-    || candidato.nivelExperiencia === 'Estagiário'
+    || nivelAtual === 'estagiario'
+    || nivelAtual === 'aprendiz'
+    || nivelAtual === 'primeiro_emprego'
     || candidato.objetivoProfissional.modo === 'exploracao'
 }
 
@@ -291,7 +295,7 @@ function gerarSugestoesCurriculo(candidato: Candidato, pontuacao: Pontuacao): st
 }
 
 function gerarResumoProfissional(candidato: Candidato, pontuacao: Pontuacao): string {
-  const nivel = candidato.nivelExperiencia
+  const nivel = rotuloNivelAtual(candidato)
   const area = candidato.areaInteresse.nome
   const objetivo = candidato.objetivoProfissional
   const opcao = objetivo.modo === 'definido' ? objetivo.opcoes[0] : undefined

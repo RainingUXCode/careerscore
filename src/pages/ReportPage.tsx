@@ -21,6 +21,7 @@ import { obterRecursosEstudo } from '../data/recursosEstudo'
 import { obterPlataformasRecomendadas } from '../data/plataformasPorArea'
 import { resolverAreaDoCandidato } from '../services/areaBridgeService'
 import { mensagemFallbackJSearch } from '../services/vagasMensagemService'
+import { rotuloNivelAtual } from '../services/nivelAtualService'
 
 type AbaRelatorio = 'perfil' | 'vagas' | 'plano' | 'curriculo'
 
@@ -76,6 +77,7 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
   const github = obterLink(candidato, 'GitHub')
   const portfolio = obterLink(candidato, 'portf')
   const certificados = candidato.certificados ?? []
+  const nivelAtual = rotuloNivelAtual(candidato)
 
   function alternarConclusao(idPlano: string) {
     setTarefasConcluidas((atuais) => {
@@ -120,7 +122,7 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                   {candidato.areaInteresse.nome}
                 </span>
                 <span className="rounded-lg border border-[var(--color-line)] bg-white/5 px-3 py-1.5 text-xs text-[var(--color-muted)]">
-                  {candidato.nivelExperiencia}
+                  {nivelAtual}
                 </span>
                 <span className="rounded-lg border border-[var(--color-line)] bg-white/5 px-3 py-1.5 text-xs text-[var(--color-muted)]">
                   {candidato.cidade}, {candidato.estado}
@@ -146,7 +148,7 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                     {recomendacoes.length} vaga{recomendacoes.length === 1 ? '' : 's'} recomendada{recomendacoes.length === 1 ? '' : 's'}
                   </p>
                   <p className="mt-1 text-xs leading-relaxed text-[var(--color-muted)]">
-                    Apenas oportunidades abertas, recentes, na modalidade escolhida e coerentes com seu nivel.
+                    Apenas oportunidades abertas, recentes, na modalidade escolhida e coerentes com seu nível.
                   </p>
                 </div>
               </div>
@@ -529,7 +531,7 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                       <SmallStat label="Recência" value="Até 45 dias" />
                       <SmallStat label="Modalidade" value={candidato.modalidadesPreferidas.join(', ') || 'Sem preferência informada'} />
-                      <SmallStat label="Nível" value={candidato.nivelExperiencia} />
+                      <SmallStat label="Nível" value={nivelAtual} />
                       <SmallStat label="Área considerada" value={areaCandidato?.nome ?? 'Não identificada'} />
                     </div>
                   </ReportCard>

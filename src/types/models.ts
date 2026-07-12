@@ -130,7 +130,7 @@ export interface Candidato {
   areaInteresse: AreaInteresse
   objetivoProfissional: ObjetivoProfissional
   modalidadesPreferidas: Modalidade[]
-  nivelExperiencia: NivelExperiencia
+  nivelExperiencia?: NivelExperiencia
   escolaridades: Escolaridade[]
   experiencias: ExperienciaProfissional[]
   competencias: Competencia[]

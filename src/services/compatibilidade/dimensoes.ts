@@ -4,12 +4,13 @@ import type { DimensaoCompatibilidade, CompetenciaTransferivel } from '../../typ
 import { NivelProficiencia, StatusCurso, TipoCompetencia } from '../../types/enums'
 import { obterAreaPorId } from '../../data/areasProfissionais'
 import { resolverAreaDoCandidato } from '../areaBridgeService'
-import { resolverSenioridadeDoCandidato, ordemSenioridadeVaga } from '../senioridadeBridgeService'
+import { ordemSenioridadeVaga } from '../senioridadeBridgeService'
 import { analisarExperienciasAnteriores, detectarOrigensTransferiveis } from '../competenciasTransferiveisService'
 import { normalizarTexto } from '../../utils/texto'
 import { calcularDuracaoMeses } from '../../utils/formatters'
 import { pesosCompatibilidade } from '../../config/pesosCompatibilidade'
 import { contratosEfetivosDaOpcao } from '../objetivoContratoService'
+import { senioridadeAtualInferida } from '../nivelAtualService'
 
 function baseDimensao(chave: string, nome: string, peso: number): Omit<DimensaoCompatibilidade, 'avaliada' | 'confianca' | 'justificativa'> {
   return {
@@ -125,9 +126,15 @@ export function avaliarSenioridade(candidato: Candidato, vaga: VagaNormalizada):
   if (nivelAlvo === 'Indiferente') {
     return naoAvaliada(chave, nome, peso, 'O objetivo profissional marcou senioridade indiferente.')
   }
-  const senioridadeCandidato =
-    nivelAlvo && nivelAlvo !== 'Trainee' ? nivelAlvo : resolverSenioridadeDoCandidato(candidato.nivelExperiencia)
-  const diferenca = Math.abs(ordemSenioridadeVaga[senioridadeCandidato] - ordemSenioridadeVaga[vaga.senioridade])
+  const senioridadeAtual = senioridadeAtualInferida(candidato)
+  const senioridadeReferencia =
+    nivelAlvo && nivelAlvo !== 'Trainee' ? nivelAlvo : senioridadeAtual
+
+  if (!senioridadeReferencia) {
+    return naoAvaliada(chave, nome, peso, 'Não há evidência suficiente para inferir o nível atual do candidato.')
+  }
+
+  const diferenca = Math.abs(ordemSenioridadeVaga[senioridadeReferencia] - ordemSenioridadeVaga[vaga.senioridade])
   const nota = diferenca === 0 ? 10 : diferenca === 1 ? 6 : 2
 
   return {
@@ -135,7 +142,9 @@ export function avaliarSenioridade(candidato: Candidato, vaga: VagaNormalizada):
     avaliada: true,
     confianca: 0.8,
     nota,
-    justificativa: `Vaga busca nível "${vaga.senioridade}"; seu nível informado é "${senioridadeCandidato}".`,
+    justificativa: senioridadeAtual
+      ? `Vaga busca nível "${vaga.senioridade}"; seu nível pretendido é "${senioridadeReferencia}" e o nível atual inferido é "${senioridadeAtual}".`
+      : `Vaga busca nível "${vaga.senioridade}"; comparação feita com o nível pretendido "${senioridadeReferencia}".`,
     requisitosAtendidos: diferenca === 0 ? [vaga.senioridade] : [],
     requisitosParciais: diferenca === 1 ? [vaga.senioridade] : [],
     requisitosAusentes: diferenca > 1 ? [vaga.senioridade] : [],

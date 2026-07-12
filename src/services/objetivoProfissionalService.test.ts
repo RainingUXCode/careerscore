@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { Modalidade, TipoLink } from '../types/enums'
+import { Modalidade, NivelExperiencia, TipoLink } from '../types/enums'
 import { criarCandidatoBase } from '../test/fixtures'
 import { draftService } from './draftService'
 import { objetivoProfissionalPadrao } from './objetivoProfissionalService'
@@ -56,6 +56,19 @@ describe('objetivo profissional', () => {
 
     expect(erros.opcoes).toBeUndefined()
     expect(erros.preferenciasExploracao).toBeUndefined()
+  })
+
+  it('dados pessoais continuam validos sem nivelExperiencia', () => {
+    const candidato = criarCandidatoBase({
+      nome: 'Pessoa Teste',
+      email: 'pessoa@example.com',
+      telefone: '83999999999',
+      cidade: 'João Pessoa',
+      estado: 'PB',
+      nivelExperiencia: undefined,
+    })
+
+    expect(validationService.validarDadosPessoais(candidato).nivelExperiencia).toBeUndefined()
   })
 
   it('modo definido aceita ate 3 objetivos e usa a ordem como prioridade implicita', () => {
@@ -133,6 +146,26 @@ describe('objetivo profissional', () => {
       preferenciasExploracao: { interesses: [] },
       opcoes: [],
     })
+  })
+
+  it('le nivelExperiencia legado como fallback temporario e nao salva novamente', () => {
+    const storage = localStorageMemoria()
+    storage.setItem(
+      'careerscore:rascunho-candidato',
+      JSON.stringify({
+        nome: 'Pessoa Legada',
+        nivelExperiencia: NivelExperiencia.PLENO,
+      }),
+    )
+    vi.stubGlobal('window', { localStorage: storage })
+
+    const candidato = draftService.carregar(criarCandidatoBase())
+    expect(candidato.nivelExperiencia).toBe(NivelExperiencia.PLENO)
+
+    draftService.salvar(candidato)
+    const salvo = JSON.parse(storage.getItem('careerscore:rascunho-candidato') ?? '{}')
+    expect(salvo.nivelExperiencia).toBeUndefined()
+    expect(salvo.nome).toBe('Pessoa Legada')
   })
 
   it('migra perfil antigo com cargo preenchido para uma opcao definida', () => {

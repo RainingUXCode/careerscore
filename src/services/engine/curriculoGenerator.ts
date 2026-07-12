@@ -15,6 +15,7 @@ import type { ContextoExterno } from '../../types/externo'
 import { competenciasReferenciaPorArea } from '../../data/competenciasReferencia'
 import { formatarData, calcularDuracaoMeses } from '../../utils/formatters'
 import { sanitizarLinks } from '../linksService'
+import { rotuloNivelAtual } from '../nivelAtualService'
 
 export interface CurriculoGeneratorInput {
   candidato: Candidato
@@ -85,6 +86,7 @@ function montarResumoProfissional(candidato: Candidato): string {
   const referencia = competenciasReferenciaPorArea[candidato.areaInteresse.nome] ?? []
   const tecnicas = candidato.competencias.filter((c) => c.tipo === TipoCompetencia.TECNICA).map((c) => c.nome)
   const opcaoObjetivo = objetivo?.modo === 'definido' ? objetivo.opcoes[0] : undefined
+  const nivelAtual = rotuloNivelAtual(candidato)
   const tecnicasDestaque = ordenarPorRelevancia(tecnicas, referencia).slice(0, 3)
 
   const mesesExperiencia = candidato.experiencias.reduce(
@@ -96,12 +98,12 @@ function montarResumoProfissional(candidato: Candidato): string {
 
   if (objetivo?.modo === 'exploracao' || !opcaoObjetivo?.cargoOuArea.trim()) {
     frases.push(
-      `Profissional nível ${candidato.nivelExperiencia.toLowerCase()} em fase de exploração profissional na área de ${area}` +
+      `Profissional nível ${nivelAtual.toLowerCase()} em fase de exploração profissional na área de ${area}` +
         (tecnicasDestaque.length > 0 ? `, com conhecimento em ${listarComE(tecnicasDestaque)}.` : '.'),
     )
   } else {
     frases.push(
-      `Profissional nível ${(opcaoObjetivo.nivelAlvo && opcaoObjetivo.nivelAlvo !== 'Indiferente' ? opcaoObjetivo.nivelAlvo : candidato.nivelExperiencia).toLowerCase()} com objetivo em ${opcaoObjetivo.cargoOuArea.trim() || area}` +
+      `Profissional nível ${(opcaoObjetivo.nivelAlvo && opcaoObjetivo.nivelAlvo !== 'Indiferente' ? opcaoObjetivo.nivelAlvo : nivelAtual).toLowerCase()} com objetivo em ${opcaoObjetivo.cargoOuArea.trim() || area}` +
         (tecnicasDestaque.length > 0 ? `, com conhecimento em ${listarComE(tecnicasDestaque)}.` : '.'),
     )
   }

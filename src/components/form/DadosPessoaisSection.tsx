@@ -1,7 +1,5 @@
 import type { Candidato } from '../../types/models'
-import { NivelExperiencia } from '../../types/enums'
 import { Input } from '../ui/Input'
-import { Select } from '../ui/Select'
 import type { ErrosValidacao } from '../../services/validationService'
 import { formatarTelefone } from '../../utils/formatters'
 
@@ -10,8 +8,6 @@ interface Props {
   atualizarCampo: <K extends keyof Candidato>(campo: K, valor: Candidato[K]) => void
   erros: ErrosValidacao
 }
-
-const opcoesNivel = Object.values(NivelExperiencia).map((v) => ({ value: v, label: v }))
 
 export function DadosPessoaisSection({ candidato, atualizarCampo, erros }: Props) {
   return (
@@ -23,7 +19,6 @@ export function DadosPessoaisSection({ candidato, atualizarCampo, erros }: Props
         value={candidato.nome}
         onChange={(e) => atualizarCampo('nome', e.target.value)}
         error={erros.nome}
-        className="sm:col-span-2"
       />
       <Input
         id="email"
@@ -60,15 +55,6 @@ export function DadosPessoaisSection({ candidato, atualizarCampo, erros }: Props
         value={candidato.estado}
         onChange={(e) => atualizarCampo('estado', e.target.value)}
         error={erros.estado}
-      />
-      <Select
-        id="nivelExperiencia"
-        label="Nível de experiência"
-        options={opcoesNivel}
-        value={candidato.nivelExperiencia}
-        onChange={(e) => atualizarCampo('nivelExperiencia', e.target.value as NivelExperiencia)}
-        error={erros.nivelExperiencia}
-        className="sm:col-span-2"
       />
     </div>
   )

@@ -48,7 +48,7 @@ export const draftService = {
 
   salvar(candidato: Candidato) {
     if (typeof window === 'undefined') return
-    const { curriculo: _curriculo, ...candidatoSemArquivo } = candidato
+    const { curriculo: _curriculo, nivelExperiencia: _nivelExperiencia, ...candidatoSemArquivo } = candidato
     const serializavel = {
       ...candidatoSemArquivo,
       certificados: candidato.certificados.map(({ arquivo: _arquivo, ...certificado }) => certificado),

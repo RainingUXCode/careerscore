@@ -49,7 +49,6 @@ export const validationService = {
     }
     if (!dados.cidade?.trim()) erros.cidade = 'Informe sua cidade.'
     if (!dados.estado?.trim()) erros.estado = 'Informe seu estado.'
-    if (!dados.nivelExperiencia) erros.nivelExperiencia = 'Selecione seu nível de experiência.'
     return erros
   },
 

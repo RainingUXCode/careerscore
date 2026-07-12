@@ -9,7 +9,7 @@ import type {
   LinkProfissional,
   Curriculo,
 } from '../types/models'
-import { NomeArea, NivelExperiencia, TipoLink, TipoCompetencia, NivelProficiencia, StatusCurso, FormatoCurriculo, Modalidade } from '../types/enums'
+import { NomeArea, TipoLink, TipoCompetencia, NivelProficiencia, StatusCurso, FormatoCurriculo, Modalidade } from '../types/enums'
 import { gerarId } from '../utils/id'
 import { draftService } from '../services/draftService'
 import { objetivoProfissionalPadrao } from '../services/objetivoProfissionalService'
@@ -27,7 +27,6 @@ function candidatoVazio(): Candidato {
     areaInteresse: { idArea: gerarId('area'), nome: NomeArea.TECNOLOGIA_DADOS },
     objetivoProfissional: objetivoProfissionalPadrao,
     modalidadesPreferidas: [Modalidade.REMOTO, Modalidade.HIBRIDO, Modalidade.PRESENCIAL],
-    nivelExperiencia: NivelExperiencia.JUNIOR,
     escolaridades: [],
     experiencias: [],
     competencias: [],

@@ -78,4 +78,25 @@ describe('analysisService', () => {
 
     expect(analise.pontuacaoDetalhes.experiencia).toBe(6)
   })
+
+  it('ausencia de nivelExperiencia nao reduz o score', () => {
+    const base = {
+      experiencias: [],
+      competencias: [{ idCompetencia: 'comp-1', nome: 'React', tipo: TipoCompetencia.TECNICA }],
+      escolaridades: [{
+        idEscolaridade: 'esc-1',
+        instituicao: 'Universidade',
+        curso: 'Sistemas',
+        nivel: 'Superior',
+        status: StatusCurso.CURSANDO,
+        dataInicio: '2024-01',
+      }],
+      links: [{ idLink: 'link-1', tipo: TipoLink.GITHUB, url: 'https://github.com/teste' }],
+    }
+
+    const semNivel = analysisService.calcularScore(criarCandidatoBase({ ...base, nivelExperiencia: undefined }))
+    const legado = analysisService.calcularScore(criarCandidatoBase({ ...base, nivelExperiencia: NivelExperiencia.JUNIOR }))
+
+    expect(semNivel).toBe(legado)
+  })
 })

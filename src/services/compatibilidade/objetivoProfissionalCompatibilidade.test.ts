@@ -87,4 +87,38 @@ describe('objetivo profissional na compatibilidade', () => {
 
     expect(resultado.dimensoes.find((d) => d.chave === 'tipo_contrato')?.nota).toBe(10)
   })
+
+  it('usa inferencia conservadora do nivel atual em transicao de carreira', () => {
+    const resultado = calcularCompatibilidade(
+      criarCandidatoBase({
+        areaInteresse: { idArea: 'area-tech', nome: NomeArea.TECNOLOGIA_DADOS },
+        objetivoProfissional: {
+          modo: 'definido',
+          opcoes: [{
+            id: 'obj-1',
+            cargoOuArea: 'Desenvolvedor',
+            nivelAlvo: 'Sênior',
+            tiposContratoAceitos: ['CLT'],
+            modalidadesAceitas: [Modalidade.REMOTO],
+          }],
+          preferenciasExploracao: { interesses: [] },
+        },
+        experiencias: [{
+          idExperiencia: 'exp-1',
+          empresa: 'Clínica',
+          cargo: 'Fisioterapeuta sênior',
+          descricao: 'Atendimento a pacientes e organização clínica.',
+          dataInicio: '2015-01',
+          dataFim: '2025-01',
+          empregoAtual: false,
+        }],
+      }),
+      criarVagaBase({
+        senioridadeInformada: true,
+        senioridade: 'Sênior',
+      }),
+    )
+
+    expect(resultado.dimensoes.find((d) => d.chave === 'senioridade')?.justificativa).toContain('nível atual inferido é "Júnior"')
+  })
 })

@@ -1,6 +1,6 @@
 import type { Candidato } from '../types/models'
 import type { VagaNormalizada } from '../types/vaga'
-import { NomeArea, NivelExperiencia, Modalidade } from '../types/enums'
+import { NomeArea, Modalidade } from '../types/enums'
 import { objetivoProfissionalPadrao, normalizarObjetivoProfissional } from '../services/objetivoProfissionalService'
 
 type ObjetivoFixture = Partial<Candidato['objetivoProfissional']> & Record<string, unknown>
@@ -21,7 +21,6 @@ export function criarCandidatoBase(sobrescreve: CandidatoFixture = {}): Candidat
     areaInteresse: { idArea: 'area-1', nome: NomeArea.TECNOLOGIA_DADOS },
     objetivoProfissional: normalizarObjetivoProfissional(objetivoProfissional ?? objetivoProfissionalPadrao),
     modalidadesPreferidas: [Modalidade.REMOTO],
-    nivelExperiencia: NivelExperiencia.JUNIOR,
     escolaridades: [],
     experiencias: [],
     competencias: [],
