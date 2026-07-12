@@ -7,17 +7,18 @@ describe('objetivo profissional na compatibilidade', () => {
   it('cargo desejado orienta cargo e senioridade alvo', () => {
     const resultado = calcularCompatibilidade(
       criarCandidatoBase({
+        cidade: 'Recife',
+        estado: 'PE',
         objetivoProfissional: {
-          cargoDesejado: 'Assistente de RH',
-          nivelAlvo: 'Assistente',
-          areasSecundarias: ['Marketing'],
-          tiposContratoAceitos: ['CLT', 'PJ'],
-          modalidadesAceitas: [Modalidade.HIBRIDO],
-          cidadeBusca: 'Recife',
-          estadoBusca: 'PE',
-          paisBusca: 'Brasil',
-          aceitaMudanca: false,
-          conhecimentosPrioritarios: ['Excel'],
+          modo: 'definido',
+          opcoes: [{
+            id: 'obj-1',
+            cargoOuArea: 'Assistente de RH',
+            nivelAlvo: 'Assistente',
+            tiposContratoAceitos: ['CLT', 'PJ'],
+            modalidadesAceitas: [Modalidade.HIBRIDO],
+          }],
+          preferenciasExploracao: { interesses: [] },
         },
       }),
       criarVagaBase({
@@ -37,7 +38,7 @@ describe('objetivo profissional na compatibilidade', () => {
     expect(resultado.dimensoes.find((d) => d.chave === 'senioridade')?.nota).toBe(10)
     expect(resultado.dimensoes.find((d) => d.chave === 'tipo_contrato')?.nota).toBe(10)
     expect(resultado.dimensoes.find((d) => d.chave === 'modalidade')?.nota).toBe(10)
-    expect(resultado.dimensoes.find((d) => d.chave === 'conhecimentos_prioritarios')?.requisitosAtendidos).toContain('Excel')
+    expect(resultado.dimensoes.some((d) => d.chave === 'conhecimentos_prioritarios')).toBe(false)
   })
 
   it('transicao de carreira usa area alvo do cargo desejado', () => {
@@ -45,16 +46,15 @@ describe('objetivo profissional na compatibilidade', () => {
       criarCandidatoBase({
         areaInteresse: { idArea: 'area-1', nome: NomeArea.TECNOLOGIA_DADOS },
         objetivoProfissional: {
-          cargoDesejado: 'Assistente de RH',
-          nivelAlvo: 'Assistente',
-          areasSecundarias: ['Tecnologia'],
-          tiposContratoAceitos: ['CLT'],
-          modalidadesAceitas: [Modalidade.PRESENCIAL],
-          cidadeBusca: 'Joao Pessoa',
-          estadoBusca: 'PB',
-          paisBusca: 'Brasil',
-          aceitaMudanca: false,
-          conhecimentosPrioritarios: [],
+          modo: 'definido',
+          opcoes: [{
+            id: 'obj-1',
+            cargoOuArea: 'Assistente de RH',
+            nivelAlvo: 'Assistente',
+            tiposContratoAceitos: ['CLT'],
+            modalidadesAceitas: [Modalidade.PRESENCIAL],
+          }],
+          preferenciasExploracao: { interesses: [] },
         },
       }),
       criarVagaBase({ areaId: 'recursos-humanos' }),

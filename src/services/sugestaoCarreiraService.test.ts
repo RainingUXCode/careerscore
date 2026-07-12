@@ -12,11 +12,7 @@ describe('sugestoes de carreira em exploracao', () => {
         objetivoProfissional: {
           modo: 'exploracao',
           preferenciasExploracao: {
-            atividadesPreferidas: ['atender pessoas', 'organizar documentos'],
-            atividadesEvitar: [],
-            prefereTrabalharCom: ['pessoas', 'processos'],
-            ambientesPreferidos: [],
-            interesses: ['recursos humanos'],
+            interesses: ['recursos humanos', 'atendimento', 'organização'],
           },
         },
         competencias: [
@@ -33,44 +29,43 @@ describe('sugestoes de carreira em exploracao', () => {
     expect(sugestoes[0].mensagemCautelosa).not.toContain('carreira certa')
   })
 
-  it('permite salvar ate 3 opcoes para explorar', () => {
+  it('transforma sugestoes em ate 3 opcoes sem campo principal ou prioridade manual', () => {
     const sugestoes = gerarSugestoesCarreira(
       criarCandidatoBase({
         objetivoProfissional: {
           modo: 'exploracao',
           preferenciasExploracao: {
-            atividadesPreferidas: ['vendas', 'atendimento', 'dados', 'design'],
-            atividadesEvitar: [],
-            prefereTrabalharCom: ['pessoas', 'dados', 'criatividade'],
-            ambientesPreferidos: [],
-            interesses: ['comercial', 'tecnologia', 'design'],
+            interesses: ['comercial', 'tecnologia', 'design', 'atendimento'],
           },
         },
+        competencias: [
+          { idCompetencia: 'comp-1', nome: 'Figma', tipo: TipoCompetencia.TECNICA },
+          { idCompetencia: 'comp-2', nome: 'Comunicação', tipo: TipoCompetencia.COMPORTAMENTAL },
+        ],
       }),
     )
 
     const opcoes = sugestoesParaOpcoes(sugestoes)
 
     expect(opcoes.length).toBeLessThanOrEqual(3)
-    expect(opcoes.some((opcao) => opcao.principal)).toBe(true)
+    expect(opcoes[0].cargoOuArea).toBeTruthy()
+    expect('principal' in opcoes[0]).toBe(false)
+    expect('prioridade' in opcoes[0]).toBe(false)
   })
 
-  it('escolha posterior atualiza curriculo e plano de acao', async () => {
+  it('escolha posterior atualiza curriculo e plano de acao sem criar conhecimentos prioritarios', async () => {
     const candidato = criarCandidatoBase({
       objetivoProfissional: {
         modo: 'exploracao',
         preferenciasExploracao: {
-          atividadesPreferidas: ['organizar documentos'],
-          atividadesEvitar: [],
-          prefereTrabalharCom: ['processos'],
-          ambientesPreferidos: [],
-          interesses: ['administrativo'],
+          interesses: ['administrativo', 'organizar documentos'],
         },
       },
       competencias: [{ idCompetencia: 'comp-1', nome: 'Excel', tipo: TipoCompetencia.TECNICA }],
     })
     const sugestao = gerarSugestoesCarreira(candidato)[0]
     const atualizado = sugestaoParaObjetivo(candidato, sugestao)
+    const cargoEscolhido = atualizado.objetivoProfissional.opcoes[0].cargoOuArea
 
     const curriculo = await careerAnalysisEngine.gerarCurriculoOtimizado({ candidato: atualizado })
     const analise = analysisService.gerarAnalise(atualizado)
@@ -78,7 +73,8 @@ describe('sugestoes de carreira em exploracao', () => {
     expect(atualizado.objetivoProfissional.modo).toBe('definido')
     expect(atualizado.competencias).toEqual(candidato.competencias)
     expect(atualizado.nome).toBe(candidato.nome)
-    expect(curriculo.resumoProfissional).toContain(atualizado.objetivoProfissional.cargoDesejado)
-    expect(analise.planoAcao.some((acao) => acao.titulo.includes(atualizado.objetivoProfissional.cargoDesejado))).toBe(true)
+    expect('conhecimentosPrioritarios' in atualizado.objetivoProfissional).toBe(false)
+    expect(curriculo.resumoProfissional).toContain(cargoEscolhido)
+    expect(analise.planoAcao.some((acao) => acao.titulo.includes(cargoEscolhido))).toBe(true)
   })
 })

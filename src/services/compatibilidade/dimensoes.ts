@@ -1,5 +1,5 @@
-import type { Candidato } from '../../types/models'
-import type { TipoContratoVaga, VagaNormalizada, RequisitoVaga } from '../../types/vaga'
+﻿import type { Candidato } from '../../types/models'
+import type { TipoContratoVaga, VagaNormalizada, RequisitoVaga, NivelSenioridadeVaga } from '../../types/vaga'
 import type { DimensaoCompatibilidade, CompetenciaTransferivel } from '../../types/compatibilidade'
 import { NivelProficiencia, StatusCurso, TipoCompetencia } from '../../types/enums'
 import { obterAreaPorId } from '../../data/areasProfissionais'
@@ -35,21 +35,12 @@ function textoContem(textoNormalizado: string, termo: string): boolean {
 
 function obterCargoObjetivoAtivo(candidato: Candidato): string | undefined {
   const objetivo = candidato.objetivoProfissional
-  if (objetivo?.modo === 'definido') return objetivo.cargoDesejado?.trim() || undefined
-  if (objetivo?.modo === 'multiplas_opcoes') {
-    const principal = objetivo.opcoes.find((opcao) => opcao.principal) ?? objetivo.opcoes[0]
-    return principal?.cargoOuArea?.trim() || undefined
-  }
-  return undefined
+  return objetivo?.modo === 'definido' ? objetivo.opcoes[0]?.cargoOuArea?.trim() || undefined : undefined
 }
 
-function obterNivelAlvoAtivo(candidato: Candidato): Candidato['objetivoProfissional']['nivelAlvo'] | undefined {
+function obterNivelAlvoAtivo(candidato: Candidato): NivelSenioridadeVaga | 'Trainee' | 'Indiferente' | undefined {
   const objetivo = candidato.objetivoProfissional
-  if (objetivo?.modo === 'definido') return objetivo.nivelAlvo
-  if (objetivo?.modo === 'multiplas_opcoes') {
-    return (objetivo.opcoes.find((opcao) => opcao.principal) ?? objetivo.opcoes[0])?.nivelAlvo
-  }
-  return undefined
+  return objetivo?.modo === 'definido' ? objetivo.opcoes[0]?.nivelAlvo : undefined
 }
 
 // ---------------------------------------------------------------------------
@@ -186,7 +177,7 @@ export function avaliarFormacao(candidato: Candidato, vaga: VagaNormalizada): Di
     justificativa:
       ausentes.length === 0
         ? 'Sua formação atende ao que a vaga pede.'
-        : 'A vaga pede formação relacionada que não foi identificada no seu perfil — isso pode ser aceito se a empresa considerar áreas correlatas.',
+        : 'A vaga pede formação relacionada que não foi identificada no seu perfil; isso pode ser aceito se a empresa considerar áreas correlatas.',
     requisitosAtendidos: atendidos,
     requisitosParciais: parciais,
     requisitosAusentes: ausentes,
@@ -226,7 +217,7 @@ export function avaliarExperiencia(candidato: Candidato, vaga: VagaNormalizada):
       avaliada: true,
       confianca: 0.9,
       nota: 10,
-      justificativa: 'Vaga de primeiro emprego/estágio — não exige experiência prévia.',
+      justificativa: 'Vaga de primeiro emprego/estágio; não exige experiência prévia.',
     }
   }
 
@@ -562,7 +553,7 @@ export function avaliarLocalizacao(
           avaliada: true,
           confianca: 0.6,
           nota: 8,
-          justificativa: 'Vaga remota sem restrição geográfica informada — considerada compatível, com ressalva.',
+          justificativa: 'Vaga remota sem restrição geográfica informada; considerada compatível, com ressalva.',
         },
       }
     }
@@ -577,7 +568,7 @@ export function avaliarLocalizacao(
         nota: aceita ? 10 : 0,
         justificativa: aceita
           ? 'Vaga remota aceita candidatos da sua localização.'
-          : 'Vaga remota restrita a outra região/país — não compatível com sua localização.',
+          : 'Vaga remota restrita a outra região/país; não compatível com sua localização.',
       },
       impeditivo: aceita ? undefined : 'Vaga remota restrita a região/país diferente do seu.',
     }
@@ -588,13 +579,12 @@ export function avaliarLocalizacao(
     return { dimensao: naoAvaliada(chave, nome, peso, 'A vaga não informou cidade/estado para avaliar compatibilidade geográfica.') }
   }
 
-  const cidadeBase = candidato.objetivoProfissional?.cidadeBusca?.trim() || candidato.cidade
-  const estadoBase = candidato.objetivoProfissional?.estadoBusca?.trim() || candidato.estado
-  const aceitaMudanca = Boolean(candidato.objetivoProfissional?.aceitaMudanca)
+  const cidadeBase = candidato.cidade
+  const estadoBase = candidato.estado
   const mesmoEstado = normalizarTexto(estadoBase) === normalizarTexto(vaga.localizacao.estado ?? '')
   const mesmaCidade = normalizarTexto(cidadeBase) === normalizarTexto(vaga.localizacao.cidade ?? '')
 
-  const nota = mesmaCidade ? 10 : mesmoEstado ? 5 : aceitaMudanca ? 4 : 0
+  const nota = mesmaCidade ? 10 : mesmoEstado ? 5 : 0
   return {
     dimensao: {
       ...baseDimensao(chave, nome, peso),
@@ -604,7 +594,7 @@ export function avaliarLocalizacao(
       justificativa: mesmaCidade
         ? 'Vaga na sua cidade.'
         : mesmoEstado
-          ? 'Vaga no seu estado, mas em outra cidade — avalie o deslocamento.'
+          ? 'Vaga no seu estado, mas em outra cidade; avalie o deslocamento.'
           : `Vaga presencial/híbrida em ${vaga.localizacao.cidade ?? vaga.localizacao.estado}, fora da sua localização.`,
     },
     impeditivo: nota === 0 && vaga.modalidade === 'Presencial' ? 'Localização presencial incompatível com sua cidade/estado.' : undefined,
@@ -624,10 +614,7 @@ export function avaliarModalidade(candidato: Candidato, vaga: VagaNormalizada): 
   }
 
   const objetivo = candidato.objetivoProfissional
-  const modalidadesObjetivo =
-    objetivo?.modo === 'multiplas_opcoes'
-      ? (objetivo.opcoes.find((opcao) => opcao.principal) ?? objetivo.opcoes[0])?.modalidadesAceitas
-      : objetivo?.modalidadesAceitas
+  const modalidadesObjetivo = objetivo?.modo === 'definido' ? objetivo.opcoes[0]?.modalidadesAceitas : undefined
   const preferidas = modalidadesObjetivo?.length
     ? modalidadesObjetivo
     : candidato.modalidadesPreferidas?.length
@@ -650,14 +637,11 @@ export function avaliarModalidade(candidato: Candidato, vaga: VagaNormalizada): 
 }
 
 // ---------------------------------------------------------------------------
-// 14. Tipo de contrato — sem preferência coletada no formulário ainda
+// 14. Tipo de contrato; sem preferência coletada no formulário ainda
 // ---------------------------------------------------------------------------
 export function avaliarTipoContrato(candidato: Candidato, vaga: VagaNormalizada): DimensaoCompatibilidade {
   const objetivo = candidato.objetivoProfissional
-  const preferidos =
-    objetivo?.modo === 'multiplas_opcoes'
-      ? ((objetivo.opcoes.find((opcao) => opcao.principal) ?? objetivo.opcoes[0])?.tiposContratoAceitos ?? [])
-      : (objetivo?.tiposContratoAceitos ?? [])
+  const preferidos = objetivo?.modo === 'definido' ? (objetivo.opcoes[0]?.tiposContratoAceitos ?? []) : []
   if (!vaga.tipoContrato || preferidos.length === 0 || preferidos.includes('Indiferente')) {
     return naoAvaliada(
       'tipo_contrato',
@@ -680,31 +664,8 @@ export function avaliarTipoContrato(candidato: Candidato, vaga: VagaNormalizada)
   }
 }
 
-export function avaliarConhecimentosPrioritarios(candidato: Candidato, vaga: VagaNormalizada): DimensaoCompatibilidade {
-  const conhecimentos = candidato.objetivoProfissional?.conhecimentosPrioritarios ?? []
-  if (conhecimentos.length === 0) {
-    return naoAvaliada('conhecimentos_prioritarios', 'Conhecimentos prioritários', 0, 'Nenhum conhecimento prioritário informado no objetivo.')
-  }
-  const textoVaga = normalizarTexto(
-    [vaga.titulo, vaga.descricao, ...vaga.requisitosObrigatorios.map((r) => r.nome), ...vaga.requisitosDesejaveis.map((r) => r.nome)].join(' '),
-  )
-  const atendidos = conhecimentos.filter((conhecimento) => textoVaga.includes(normalizarTexto(conhecimento)))
-  const ausentes = conhecimentos.filter((conhecimento) => !atendidos.includes(conhecimento))
-  return {
-    ...baseDimensao('conhecimentos_prioritarios', 'Conhecimentos prioritários', 0),
-    avaliada: true,
-    confianca: 0.6,
-    nota: Math.round((atendidos.length / conhecimentos.length) * 10),
-    justificativa: atendidos.length > 0
-      ? 'A vaga menciona parte dos conhecimentos priorizados no objetivo.'
-      : 'A vaga não menciona os conhecimentos priorizados no objetivo.',
-    requisitosAtendidos: atendidos,
-    requisitosAusentes: ausentes,
-  }
-}
-
 // ---------------------------------------------------------------------------
-// 15. Faixa salarial — preparado, sem preferência coletada no formulário ainda
+// 15. Faixa salarial; preparado, sem preferência coletada no formulário ainda
 // ---------------------------------------------------------------------------
 export function avaliarFaixaSalarial(): DimensaoCompatibilidade {
   return naoAvaliada(

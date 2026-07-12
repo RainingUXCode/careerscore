@@ -84,11 +84,8 @@ function montarResumoProfissional(candidato: Candidato): string {
   const objetivo = candidato.objetivoProfissional
   const referencia = competenciasReferenciaPorArea[candidato.areaInteresse.nome] ?? []
   const tecnicas = candidato.competencias.filter((c) => c.tipo === TipoCompetencia.TECNICA).map((c) => c.nome)
-  const conhecimentosObjetivo = objetivo?.modo === 'exploracao' ? [] : (objetivo?.conhecimentosPrioritarios ?? [])
-  const tecnicasDestaque = ordenarPorRelevancia(tecnicas, [
-    ...conhecimentosObjetivo,
-    ...referencia,
-  ]).slice(0, 3)
+  const opcaoObjetivo = objetivo?.modo === 'definido' ? objetivo.opcoes[0] : undefined
+  const tecnicasDestaque = ordenarPorRelevancia(tecnicas, referencia).slice(0, 3)
 
   const mesesExperiencia = candidato.experiencias.reduce(
     (soma, exp) => soma + calcularDuracaoMeses(exp.dataInicio, exp.empregoAtual ? undefined : exp.dataFim),
@@ -97,14 +94,14 @@ function montarResumoProfissional(candidato: Candidato): string {
 
   const frases: string[] = []
 
-  if (objetivo?.modo === 'exploracao' && !objetivo.cargoDesejado.trim()) {
+  if (objetivo?.modo === 'exploracao' || !opcaoObjetivo?.cargoOuArea.trim()) {
     frases.push(
       `Profissional nível ${candidato.nivelExperiencia.toLowerCase()} em fase de exploração profissional na área de ${area}` +
         (tecnicasDestaque.length > 0 ? `, com conhecimento em ${listarComE(tecnicasDestaque)}.` : '.'),
     )
   } else {
     frases.push(
-      `Profissional nível ${(objetivo?.nivelAlvo && objetivo.nivelAlvo !== 'Indiferente' ? objetivo.nivelAlvo : candidato.nivelExperiencia).toLowerCase()} com objetivo em ${objetivo?.cargoDesejado?.trim() || area}` +
+      `Profissional nível ${(opcaoObjetivo.nivelAlvo && opcaoObjetivo.nivelAlvo !== 'Indiferente' ? opcaoObjetivo.nivelAlvo : candidato.nivelExperiencia).toLowerCase()} com objetivo em ${opcaoObjetivo.cargoOuArea.trim() || area}` +
         (tecnicasDestaque.length > 0 ? `, com conhecimento em ${listarComE(tecnicasDestaque)}.` : '.'),
     )
   }
@@ -125,11 +122,8 @@ function montarResumoProfissional(candidato: Candidato): string {
 
 function montarHabilidadesTecnicas(candidato: Candidato): string[] {
   const referencia = competenciasReferenciaPorArea[candidato.areaInteresse.nome] ?? []
-  const prioritarias = candidato.objetivoProfissional?.modo === 'exploracao'
-    ? []
-    : (candidato.objetivoProfissional?.conhecimentosPrioritarios ?? [])
   const tecnicas = candidato.competencias.filter((c) => c.tipo === TipoCompetencia.TECNICA).map((c) => c.nome)
-  return ordenarPorRelevancia(tecnicas, [...prioritarias, ...referencia])
+  return ordenarPorRelevancia(tecnicas, referencia)
 }
 
 /**

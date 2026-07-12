@@ -2,6 +2,7 @@ import type { Candidato } from '../types/models'
 import type { FiltroBuscaVagas } from '../types/jobProvider'
 import type { VagaNormalizada } from '../types/vaga'
 import type { VagaRecomendada } from '../types/compatibilidade'
+import { TipoCompetencia } from '../types/enums'
 import { jobAggregatorService, type OpcoesBuscaVagas } from './jobAggregatorService'
 import { calcularCompatibilidade } from './compatibilidadeService'
 import { resolverAreaDoCandidato } from './areaBridgeService'
@@ -36,25 +37,32 @@ function textoOuUndefined(valor: string | undefined): string | undefined {
 
 function obterCargoBusca(candidato: Candidato): string | undefined {
   const objetivo = candidato.objetivoProfissional
-  if (objetivo?.modo === 'multiplas_opcoes') {
-    const principal = objetivo.opcoes.find((opcao) => opcao.principal) ?? objetivo.opcoes[0]
-    return textoOuUndefined(principal?.cargoOuArea)
-  }
-  const cargoDesejado = objetivo?.modo === 'definido' ? textoOuUndefined(objetivo.cargoDesejado) : undefined
-  if (cargoDesejado) return cargoDesejado
+  const cargoObjetivo = objetivo?.modo === 'definido'
+    ? textoOuUndefined(objetivo.opcoes[0]?.cargoOuArea)
+    : undefined
+  if (cargoObjetivo) return cargoObjetivo
+
   const experienciaAtual = candidato.experiencias.find((experiencia) => experiencia.empregoAtual && experiencia.cargo.trim())
   const experienciaComCargo = experienciaAtual ?? candidato.experiencias.find((experiencia) => experiencia.cargo.trim())
   return textoOuUndefined(experienciaComCargo?.cargo)
 }
 
+function competenciaPrincipal(candidato: Candidato): string | undefined {
+  return textoOuUndefined(candidato.competencias.find((competencia) => competencia.tipo === TipoCompetencia.TECNICA)?.nome)
+}
+
 export function montarTermosBuscaObjetivo(candidato: Candidato): string {
   const area = resolverAreaDoCandidato(candidato)
   const objetivo = candidato.objetivoProfissional
+
   if (objetivo?.modo === 'exploracao') {
-    return ['primeiro emprego', 'estagio', 'assistente', 'auxiliar', area?.nome].filter(Boolean).join(' ')
+    return ['estágio', 'trainee', 'primeiro emprego', 'assistente', 'auxiliar', area?.nome]
+      .filter(Boolean)
+      .join(' ')
   }
-  const cargo = textoOuUndefined(objetivo?.cargoDesejado) ?? obterCargoBusca(candidato)
-  const conhecimentoPrincipal = objetivo?.conhecimentosPrioritarios?.[0]
+
+  const cargo = textoOuUndefined(objetivo?.opcoes[0]?.cargoOuArea) ?? obterCargoBusca(candidato)
+  const conhecimentoPrincipal = competenciaPrincipal(candidato)
   return [cargo, area?.nome, conhecimentoPrincipal].filter(Boolean).join(' ').trim() || 'vaga'
 }
 
@@ -70,12 +78,11 @@ function modalidadeUnica(modalidades: Candidato['modalidadesPreferidas']): Candi
 
 function filtroBase(candidato: Candidato): Pick<FiltroBuscaVagas, 'areaId' | 'cidade' | 'estado' | 'pais'> {
   const area = resolverAreaDoCandidato(candidato)
-  const objetivo = candidato.objetivoProfissional
   return {
     areaId: area?.id,
-    cidade: textoOuUndefined(objetivo?.cidadeBusca) ?? textoOuUndefined(candidato.cidade),
-    estado: textoOuUndefined(objetivo?.estadoBusca) ?? textoOuUndefined(candidato.estado),
-    pais: textoOuUndefined(objetivo?.paisBusca) ?? 'Brasil',
+    cidade: textoOuUndefined(candidato.cidade),
+    estado: textoOuUndefined(candidato.estado),
+    pais: 'Brasil',
   }
 }
 
@@ -86,14 +93,12 @@ export function construirBuscasObjetivo(candidato: Candidato): BuscaObjetivo[] {
 
   if (objetivo?.modo === 'exploracao') {
     const termosAmplos = [
-      'primeiro emprego assistente auxiliar sem experiencia',
-      'estagio jovem aprendiz trainee',
-      'atendimento administrativo comercial operacoes',
+      'estágio trainee jovem aprendiz',
+      'primeiro emprego assistente auxiliar sem experiência',
+      'analista desenvolvedor',
+      'atendimento administrativo comercial operações',
     ]
-    const preferencias = [
-      ...objetivo.preferenciasExploracao.interesses,
-      ...objetivo.preferenciasExploracao.prefereTrabalharCom,
-    ].slice(0, 1)
+    const preferencias = objetivo.preferenciasExploracao.interesses.slice(0, 1)
 
     return [...termosAmplos, ...preferencias].slice(0, 4).map((termo) => ({
       filtros: {
@@ -107,31 +112,27 @@ export function construirBuscasObjetivo(candidato: Candidato): BuscaObjetivo[] {
     }))
   }
 
-  if (objetivo?.modo === 'multiplas_opcoes' && objetivo.opcoes.length > 0) {
-    return [...objetivo.opcoes]
-      .sort((a, b) => Number(b.principal) - Number(a.principal) || a.prioridade - b.prioridade)
-      .slice(0, 3)
-      .map((opcao) => ({
-        filtros: {
-          ...base,
-          cargo: textoOuUndefined(opcao.cargoOuArea),
-          palavraChave: [opcao.cargoOuArea, area?.nome].filter(Boolean).join(' '),
-          modalidade: modalidadeUnica(opcao.modalidadesAceitas),
-        },
-        objetivoOrigem: opcao.cargoOuArea,
-        buscaAmpla: false,
-      }))
+  if (objetivo?.modo === 'definido' && objetivo.opcoes.length > 0) {
+    return objetivo.opcoes.slice(0, 3).map((opcao) => ({
+      filtros: {
+        ...base,
+        cargo: textoOuUndefined(opcao.cargoOuArea),
+        palavraChave: [opcao.cargoOuArea, area?.nome, competenciaPrincipal(candidato)].filter(Boolean).join(' '),
+        modalidade: modalidadeUnica(opcao.modalidadesAceitas),
+      },
+      objetivoOrigem: opcao.cargoOuArea,
+      buscaAmpla: false,
+    }))
   }
 
-  const modalidades = objetivo?.modalidadesAceitas?.length ? objetivo.modalidadesAceitas : candidato.modalidadesPreferidas
   return [{
     filtros: {
       ...base,
       cargo: obterCargoBusca(candidato),
       palavraChave: textoOuUndefined(montarTermosBuscaObjetivo(candidato)),
-      modalidade: modalidadeUnica(modalidades),
+      modalidade: modalidadeUnica(candidato.modalidadesPreferidas),
     },
-    objetivoOrigem: objetivo?.cargoDesejado,
+    objetivoOrigem: obterCargoBusca(candidato),
     buscaAmpla: false,
   }]
 }
@@ -141,7 +142,7 @@ export function construirFiltrosBusca(candidato: Candidato): FiltroBuscaVagas {
 }
 
 function calcularAderenciaConhecimentos(candidato: Candidato, vaga: VagaNormalizada): number {
-  const conhecimentos = candidato.objetivoProfissional?.conhecimentosPrioritarios ?? []
+  const conhecimentos = candidato.competencias.map((competencia) => competencia.nome)
   if (conhecimentos.length === 0) return 0
   const textoVaga = [vaga.titulo, vaga.descricao, ...vaga.requisitosObrigatorios.map((r) => r.nome), ...vaga.requisitosDesejaveis.map((r) => r.nome)]
     .join(' ')

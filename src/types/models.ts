@@ -8,7 +8,6 @@ import type {
   NivelExperiencia,
   FormatoCurriculo,
 } from './enums'
-import type { PreferenciaSalarial } from './compatibilidade'
 import type { NivelSenioridadeVaga, TipoContratoVaga } from './vaga'
 
 /** Classe AreaInteresse */
@@ -20,32 +19,17 @@ export interface AreaInteresse {
 
 export type NivelSenioridadeAlvo = NivelSenioridadeVaga | 'Trainee' | 'Indiferente'
 export type TipoContratoAceito = TipoContratoVaga | 'Trainee' | 'Cooperado' | 'Indiferente'
-export type ModoObjetivoProfissional = 'definido' | 'multiplas_opcoes' | 'exploracao'
-export type PreferenciaTrabalhoCom =
-  | 'pessoas'
-  | 'dados'
-  | 'processos'
-  | 'criatividade'
-  | 'tecnologia'
-  | 'tarefas_praticas'
+export type ModoObjetivoProfissional = 'definido' | 'exploracao'
 
 export interface OpcaoObjetivoProfissional {
   id: string
   cargoOuArea: string
   nivelAlvo?: NivelSenioridadeAlvo
-  prioridade: number
-  principal: boolean
   tiposContratoAceitos: TipoContratoAceito[]
   modalidadesAceitas: Modalidade[]
 }
 
 export interface PreferenciasExploracao {
-  atividadesPreferidas: string[]
-  atividadesEvitar: string[]
-  prefereTrabalharCom: PreferenciaTrabalhoCom[]
-  rotinaOuVariedade?: 'rotina' | 'variedade' | 'equilibrio'
-  individualOuEquipe?: 'individual' | 'equipe' | 'ambos'
-  ambientesPreferidos: string[]
   interesses: string[]
 }
 
@@ -67,17 +51,6 @@ export interface SugestaoCarreira {
 
 export interface ObjetivoProfissional {
   modo: ModoObjetivoProfissional
-  cargoDesejado: string
-  nivelAlvo: NivelSenioridadeAlvo
-  areasSecundarias: string[]
-  tiposContratoAceitos: TipoContratoAceito[]
-  modalidadesAceitas: Modalidade[]
-  cidadeBusca?: string
-  estadoBusca?: string
-  paisBusca: string
-  aceitaMudanca: boolean
-  conhecimentosPrioritarios: string[]
-  pretensaoSalarial?: PreferenciaSalarial
   opcoes: OpcaoObjetivoProfissional[]
   preferenciasExploracao: PreferenciasExploracao
 }

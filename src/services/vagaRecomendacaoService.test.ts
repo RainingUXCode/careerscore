@@ -9,61 +9,54 @@ afterEach(() => {
 })
 
 describe('construirFiltrosBusca', () => {
-  it('preserva filtros do candidato para a busca real de vagas', () => {
+  it('preserva filtros do cadastro principal para a busca real de vagas', () => {
     const filtros = construirFiltrosBusca(
       criarCandidatoBase({
-        cidade: 'Sao Paulo',
+        cidade: 'São Paulo',
         estado: 'SP',
         modalidadesPreferidas: [Modalidade.REMOTO],
         objetivoProfissional: {
-          cargoDesejado: 'Estagio em Front-end',
-          nivelAlvo: 'Estágio',
-          areasSecundarias: ['Design'],
-          tiposContratoAceitos: ['Estágio', 'CLT'],
-          modalidadesAceitas: [Modalidade.REMOTO],
-          cidadeBusca: 'Sao Paulo',
-          estadoBusca: 'SP',
-          paisBusca: 'Brasil',
-          aceitaMudanca: false,
-          conhecimentosPrioritarios: ['React', 'Figma'],
+          modo: 'definido',
+          opcoes: [{
+            id: 'obj-1',
+            cargoOuArea: 'Estágio em Front-end',
+            nivelAlvo: 'Estágio',
+            tiposContratoAceitos: ['Estágio', 'CLT'],
+            modalidadesAceitas: [Modalidade.REMOTO],
+          }],
         },
-        experiencias: [
-          {
-            idExperiencia: 'exp-1',
-            empresa: 'Empresa Teste',
-            cargo: 'Desenvolvedor Front-end',
-            descricao: '',
-            dataInicio: '2024-01-01',
-            empregoAtual: true,
-          },
+        competencias: [
+          { idCompetencia: 'comp-1', nome: 'React', tipo: TipoCompetencia.TECNICA },
+          { idCompetencia: 'comp-2', nome: 'Figma', tipo: TipoCompetencia.TECNICA },
         ],
       }),
     )
 
     expect(filtros).toMatchObject({
       areaId: 'tecnologia',
-      cargo: 'Estagio em Front-end',
-      cidade: 'Sao Paulo',
+      cargo: 'Estágio em Front-end',
+      cidade: 'São Paulo',
       estado: 'SP',
       pais: 'Brasil',
       modalidade: Modalidade.REMOTO,
     })
   })
 
-  it('usa cargo desejado na query e nao substitui pelo cargo anterior', () => {
+  it('usa o objetivo definido na query e nao substitui pelo cargo anterior', () => {
     const candidato = criarCandidatoBase({
+      cidade: 'Recife',
+      estado: 'PE',
       objetivoProfissional: {
-        cargoDesejado: 'Assistente de RH',
-        nivelAlvo: 'Assistente',
-        areasSecundarias: [],
-        tiposContratoAceitos: ['CLT'],
-        modalidadesAceitas: [Modalidade.PRESENCIAL],
-        cidadeBusca: 'Recife',
-        estadoBusca: 'PE',
-        paisBusca: 'Brasil',
-        aceitaMudanca: false,
-        conhecimentosPrioritarios: ['recrutamento', 'Excel'],
+        modo: 'definido',
+        opcoes: [{
+          id: 'obj-1',
+          cargoOuArea: 'Assistente de RH',
+          nivelAlvo: 'Assistente',
+          tiposContratoAceitos: ['CLT'],
+          modalidadesAceitas: [Modalidade.PRESENCIAL],
+        }],
       },
+      competencias: [{ idCompetencia: 'comp-1', nome: 'Excel', tipo: TipoCompetencia.TECNICA }],
       experiencias: [
         {
           idExperiencia: 'exp-1',
@@ -85,44 +78,39 @@ describe('construirFiltrosBusca', () => {
     expect(montarTermosBuscaObjetivo(candidato)).not.toContain('Atendente')
   })
 
-  it('usuario sem experiencia busca vagas pelo objetivo', () => {
+  it('usuario sem experiencia busca vagas pelo objetivo definido', () => {
     const filtros = construirFiltrosBusca(
       criarCandidatoBase({
         experiencias: [],
         objetivoProfissional: {
-          cargoDesejado: 'Auxiliar de Logistica',
-          nivelAlvo: 'Auxiliar',
-          areasSecundarias: [],
-          tiposContratoAceitos: ['CLT'],
-          modalidadesAceitas: [Modalidade.PRESENCIAL, Modalidade.HIBRIDO],
-          cidadeBusca: '',
-          estadoBusca: '',
-          paisBusca: 'Brasil',
-          aceitaMudanca: false,
-          conhecimentosPrioritarios: [],
+          modo: 'definido',
+          opcoes: [{
+            id: 'obj-1',
+            cargoOuArea: 'Auxiliar de Logística',
+            nivelAlvo: 'Auxiliar',
+            tiposContratoAceitos: ['CLT'],
+            modalidadesAceitas: [Modalidade.PRESENCIAL, Modalidade.HIBRIDO],
+          }],
         },
       }),
     )
 
-    expect(filtros.cargo).toBe('Auxiliar de Logistica')
+    expect(filtros.cargo).toBe('Auxiliar de Logística')
     expect(filtros.modalidade).toBeUndefined()
   })
 
-  it('nao restringe modalidade quando o candidato aceita varias modalidades', () => {
+  it('nao restringe modalidade quando o candidato aceita varias modalidades no objetivo', () => {
     const filtros = construirFiltrosBusca(
       criarCandidatoBase({
-        modalidadesPreferidas: [Modalidade.REMOTO, Modalidade.HIBRIDO, Modalidade.PRESENCIAL],
         objetivoProfissional: {
-          cargoDesejado: 'Analista de Marketing',
-          nivelAlvo: 'Júnior',
-          areasSecundarias: [],
-          tiposContratoAceitos: ['CLT', 'PJ'],
-          modalidadesAceitas: [Modalidade.REMOTO, Modalidade.HIBRIDO],
-          cidadeBusca: '',
-          estadoBusca: '',
-          paisBusca: 'Brasil',
-          aceitaMudanca: false,
-          conhecimentosPrioritarios: [],
+          modo: 'definido',
+          opcoes: [{
+            id: 'obj-1',
+            cargoOuArea: 'Analista de Marketing',
+            nivelAlvo: 'Júnior',
+            tiposContratoAceitos: ['CLT', 'PJ'],
+            modalidadesAceitas: [Modalidade.REMOTO, Modalidade.HIBRIDO],
+          }],
         },
       }),
     )
@@ -134,12 +122,8 @@ describe('construirFiltrosBusca', () => {
     const candidato = criarCandidatoBase({
       objetivoProfissional: {
         modo: 'exploracao',
-        cargoDesejado: '',
+        opcoes: [],
         preferenciasExploracao: {
-          atividadesPreferidas: ['atender pessoas'],
-          atividadesEvitar: [],
-          prefereTrabalharCom: ['pessoas'],
-          ambientesPreferidos: [],
           interesses: ['administrativo'],
         },
       },
@@ -150,17 +134,18 @@ describe('construirFiltrosBusca', () => {
     expect(buscas.length).toBeGreaterThan(1)
     expect(buscas.every((busca) => busca.buscaAmpla)).toBe(true)
     expect(buscas[0].filtros.cargo).toBeUndefined()
-    expect(buscas[0].filtros.palavraChave).toContain('primeiro emprego')
+    expect(buscas.map((busca) => busca.filtros.palavraChave).join(' ')).toContain('primeiro emprego')
+    expect(buscas.map((busca) => busca.filtros.palavraChave).join(' ')).toContain('estágio')
   })
 
-  it('multiplas opcoes executa buscas separadas e preserva a principal', () => {
+  it('modo definido executa buscas separadas para ate 3 objetivos na ordem informada', () => {
     const buscas = construirBuscasObjetivo(
       criarCandidatoBase({
         objetivoProfissional: {
-          modo: 'multiplas_opcoes',
+          modo: 'definido',
           opcoes: [
-            { id: '1', cargoOuArea: 'Assistente de RH', prioridade: 2, principal: true, tiposContratoAceitos: ['CLT'], modalidadesAceitas: [Modalidade.PRESENCIAL] },
-            { id: '2', cargoOuArea: 'Auxiliar Administrativo', prioridade: 1, principal: false, tiposContratoAceitos: ['CLT'], modalidadesAceitas: [Modalidade.REMOTO, Modalidade.HIBRIDO] },
+            { id: '1', cargoOuArea: 'Assistente de RH', tiposContratoAceitos: ['CLT'], modalidadesAceitas: [Modalidade.PRESENCIAL] },
+            { id: '2', cargoOuArea: 'Auxiliar Administrativo', tiposContratoAceitos: ['CLT'], modalidadesAceitas: [Modalidade.REMOTO, Modalidade.HIBRIDO] },
           ],
         },
       }),
@@ -209,7 +194,7 @@ describe('construirFiltrosBusca', () => {
     expect(resultado.recomendacoes[0].compatibilidade.compatibilidadeGeral).toBeLessThan(70)
   })
 
-  it('confiança fica menor em recomendacao ampla sem reduzir compatibilidade', async () => {
+  it('confianca fica menor em recomendacao ampla sem reduzir compatibilidade', async () => {
     const vaga = criarVagaBase({
       id: 'vaga-ampla',
       fonte: { id: 'jsearch', nome: 'JSearch', tipo: 'real' },
@@ -232,13 +217,9 @@ describe('construirFiltrosBusca', () => {
         areaInteresse: { idArea: 'area-admin', nome: NomeArea.GESTAO_NEGOCIOS },
         objetivoProfissional: {
           modo: 'exploracao',
-          cargoDesejado: '',
+          opcoes: [],
           preferenciasExploracao: {
-            atividadesPreferidas: ['organizar documentos'],
-            atividadesEvitar: [],
-            prefereTrabalharCom: ['processos'],
-            ambientesPreferidos: [],
-            interesses: ['administrativo'],
+            interesses: ['administrativo', 'organizar documentos'],
           },
         },
       }),

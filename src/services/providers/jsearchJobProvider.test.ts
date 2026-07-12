@@ -83,7 +83,7 @@ describe('JSearchJobProvider', () => {
     await provider.buscar({
       areaId: 'tecnologia',
       cargo: 'Desenvolvedor Front-end',
-      cidade: 'SÃ£o Paulo',
+      cidade: 'São Paulo',
       estado: 'SP',
       pais: 'Brasil',
       modalidade: Modalidade.REMOTO,
@@ -93,7 +93,7 @@ describe('JSearchJobProvider', () => {
     expect(url.pathname).toBe('/api/vagas')
     expect(url.searchParams.get('area')).toBe('tecnologia')
     expect(url.searchParams.get('cargo')).toBe('Desenvolvedor Front-end')
-    expect(url.searchParams.get('cidade')).toBe('SÃ£o Paulo')
+    expect(url.searchParams.get('cidade')).toBe('São Paulo')
     expect(url.searchParams.get('estado')).toBe('SP')
     expect(url.searchParams.get('pais')).toBe('Brasil')
     expect(url.searchParams.get('modalidade')).toBe('Remoto')

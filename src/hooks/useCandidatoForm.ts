@@ -14,6 +14,7 @@ import { gerarId } from '../utils/id'
 import { draftService } from '../services/draftService'
 import { objetivoProfissionalPadrao } from '../services/objetivoProfissionalService'
 import { proximoTipoLinkDisponivel, substituirLink } from '../services/linksService'
+import { separarValoresLista } from '../utils/listas'
 
 function candidatoVazio(): Candidato {
   return {
@@ -109,9 +110,15 @@ export function useCandidatoForm() {
 
   // Competências
   function adicionarCompetencia(nome: string, tipo: TipoCompetencia) {
-    if (!nome.trim()) return
-    const nova: Competencia = { idCompetencia: gerarId('comp'), nome: nome.trim(), tipo }
-    setCandidato((atual) => ({ ...atual, competencias: [...atual.competencias, nova] }))
+    const nomes = separarValoresLista(nome)
+    if (nomes.length === 0) return
+    setCandidato((atual) => {
+      const existentes = new Set(atual.competencias.map((competencia) => `${competencia.tipo}:${competencia.nome.toLowerCase()}`))
+      const novas: Competencia[] = nomes
+        .filter((item) => !existentes.has(`${tipo}:${item.toLowerCase()}`))
+        .map((item) => ({ idCompetencia: gerarId('comp'), nome: item, tipo }))
+      return novas.length ? { ...atual, competencias: [...atual.competencias, ...novas] } : atual
+    })
   }
   function removerCompetencia(id: string) {
     setCandidato((atual) => ({
@@ -121,10 +128,10 @@ export function useCandidatoForm() {
   }
 
   // Certificados
-  function adicionarCertificado() {
+  function adicionarCertificado(titulo = '') {
     const novo: Certificado = {
       idCertificado: gerarId('cert'),
-      titulo: '',
+      titulo,
       instituicao: '',
       cargaHoraria: '',
       dataEmissao: '',
@@ -159,8 +166,8 @@ export function useCandidatoForm() {
   }
 
   // Idiomas
-  function adicionarIdioma() {
-    const novo: Idioma = { idIdioma: gerarId('idi'), nome: '', nivelProficiencia: NivelProficiencia.BASICO }
+  function adicionarIdioma(nome = '') {
+    const novo: Idioma = { idIdioma: gerarId('idi'), nome, nivelProficiencia: NivelProficiencia.BASICO }
     setCandidato((atual) => ({ ...atual, idiomas: [...atual.idiomas, novo] }))
   }
   function atualizarIdioma(id: string, patch: Partial<Idioma>) {

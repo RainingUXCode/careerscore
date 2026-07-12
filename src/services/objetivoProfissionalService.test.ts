@@ -19,69 +19,60 @@ describe('objetivo profissional', () => {
     vi.unstubAllGlobals()
   })
 
-  it('cargo desejado e campos principais sao obrigatorios', () => {
+  it('modo definido exige de 1 a 3 objetivos com cargo, modalidade e contrato', () => {
+    const candidato = criarCandidatoBase()
+    candidato.objetivoProfissional = {
+      ...objetivoProfissionalPadrao,
+      modo: 'definido',
+      opcoes: [{
+        id: '1',
+        cargoOuArea: '',
+        modalidadesAceitas: [],
+        tiposContratoAceitos: [],
+      }],
+    }
+
     const erros = validationService.validarObjetivoProfissional(
-      criarCandidatoBase({
-        objetivoProfissional: {
-          ...objetivoProfissionalPadrao,
-          modo: 'definido',
-          cargoDesejado: '',
-          modalidadesAceitas: [],
-          tiposContratoAceitos: [],
-          paisBusca: '',
-        },
-      }),
+      candidato,
     )
 
-    expect(erros.cargoDesejado).toBeDefined()
-    expect(erros.modalidadesAceitas).toBeDefined()
-    expect(erros.tiposContratoAceitos).toBeDefined()
-    expect(erros.paisBusca).toBeDefined()
+    expect(erros.opcao_0).toBeDefined()
+    expect(erros.modalidades_0).toBeDefined()
+    expect(erros.contratos_0).toBeDefined()
   })
 
-  it('cargo desejado nao e obrigatorio no modo exploracao', () => {
+  it('modo exploracao nao exige cargo, area, tecnologia prioritaria ou nivel', () => {
     const erros = validationService.validarObjetivoProfissional(
       criarCandidatoBase({
         objetivoProfissional: {
           modo: 'exploracao',
-          cargoDesejado: '',
+          opcoes: [],
           preferenciasExploracao: {
-            ...objetivoProfissionalPadrao.preferenciasExploracao,
             interesses: ['pessoas'],
           },
         },
       }),
     )
 
-    expect(erros.cargoDesejado).toBeUndefined()
+    expect(erros.opcoes).toBeUndefined()
     expect(erros.preferenciasExploracao).toBeUndefined()
   })
 
-  it('multiplas opcoes aceita ate 3 objetivos e exige principal', () => {
+  it('modo definido aceita ate 3 objetivos e usa a ordem como prioridade implicita', () => {
     const candidato = criarCandidatoBase({
       objetivoProfissional: {
-        modo: 'multiplas_opcoes',
+        modo: 'definido',
         opcoes: [
-          { id: '1', cargoOuArea: 'RH', prioridade: 1, principal: false, tiposContratoAceitos: ['CLT'], modalidadesAceitas: [Modalidade.PRESENCIAL] },
-          { id: '2', cargoOuArea: 'Administrativo', prioridade: 2, principal: false, tiposContratoAceitos: ['CLT'], modalidadesAceitas: [Modalidade.PRESENCIAL] },
-          { id: '3', cargoOuArea: 'Vendas', prioridade: 3, principal: false, tiposContratoAceitos: ['CLT'], modalidadesAceitas: [Modalidade.PRESENCIAL] },
+          { id: '1', cargoOuArea: 'RH', tiposContratoAceitos: ['CLT'], modalidadesAceitas: [Modalidade.PRESENCIAL] },
+          { id: '2', cargoOuArea: 'Administrativo', tiposContratoAceitos: ['CLT'], modalidadesAceitas: [Modalidade.PRESENCIAL] },
+          { id: '3', cargoOuArea: 'Vendas', tiposContratoAceitos: ['CLT'], modalidadesAceitas: [Modalidade.PRESENCIAL] },
         ],
       },
     })
 
     const erros = validationService.validarObjetivoProfissional(candidato)
     expect(erros.opcoes).toBeUndefined()
-    expect(erros.opcaoPrincipal).toBeDefined()
-
-    const comPrincipal = validationService.validarObjetivoProfissional(
-      criarCandidatoBase({
-        objetivoProfissional: {
-          modo: 'multiplas_opcoes',
-          opcoes: [{ ...candidato.objetivoProfissional.opcoes[0], principal: true }],
-        },
-      }),
-    )
-    expect(comPrincipal.opcaoPrincipal).toBeUndefined()
+    expect(candidato.objetivoProfissional.opcoes[0].cargoOuArea).toBe('RH')
   })
 
   it('migra rascunho antigo sem objetivo sem apagar dados existentes', () => {
@@ -92,7 +83,7 @@ describe('objetivo profissional', () => {
         nome: 'Pessoa Teste',
         email: 'teste@example.com',
         telefone: '83999999999',
-        cidade: 'Joao Pessoa',
+        cidade: 'João Pessoa',
         estado: 'PB',
       }),
     )
@@ -103,20 +94,23 @@ describe('objetivo profissional', () => {
     expect(candidato.nome).toBe('Pessoa Teste')
     expect(candidato.objetivoProfissional).toMatchObject({
       modo: 'exploracao',
-      cargoDesejado: '',
-      paisBusca: 'Brasil',
-      modalidadesAceitas: [Modalidade.REMOTO, Modalidade.HIBRIDO, Modalidade.PRESENCIAL],
+      preferenciasExploracao: { interesses: [] },
+      opcoes: [],
     })
   })
 
-  it('migra perfil com cargo preenchido para modo definido', () => {
+  it('migra perfil antigo com cargo preenchido para uma opcao definida', () => {
     const storage = localStorageMemoria()
     storage.setItem(
       'careerscore:rascunho-candidato',
       JSON.stringify({
         objetivoProfissional: {
           cargoDesejado: 'Assistente de RH',
+          nivelAlvo: 'Assistente',
+          tiposContratoAceitos: ['CLT'],
+          modalidadesAceitas: [Modalidade.PRESENCIAL],
           paisBusca: 'Brasil',
+          conhecimentosPrioritarios: ['Excel'],
         },
       }),
     )
@@ -125,7 +119,13 @@ describe('objetivo profissional', () => {
     const candidato = draftService.carregar(criarCandidatoBase())
 
     expect(candidato.objetivoProfissional.modo).toBe('definido')
-    expect(candidato.objetivoProfissional.cargoDesejado).toBe('Assistente de RH')
+    expect(candidato.objetivoProfissional.opcoes[0]).toMatchObject({
+      cargoOuArea: 'Assistente de RH',
+      nivelAlvo: 'Assistente',
+      tiposContratoAceitos: ['CLT'],
+      modalidadesAceitas: [Modalidade.PRESENCIAL],
+    })
+    expect('conhecimentosPrioritarios' in candidato.objetivoProfissional).toBe(false)
   })
 
   it('saneia links antigos duplicados sem apagar os demais dados do rascunho', () => {

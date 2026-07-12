@@ -34,10 +34,10 @@ interface ReportPageProps {
 }
 
 const abas: Array<{ id: AbaRelatorio; label: string }> = [
-  { id: 'perfil', label: 'AnÃ¡lise de perfil' },
+  { id: 'perfil', label: 'Análise de perfil' },
   { id: 'vagas', label: 'Vagas' },
-  { id: 'plano', label: 'Plano de aÃ§Ã£o' },
-  { id: 'curriculo', label: 'CurrÃ­culo ATS' },
+  { id: 'plano', label: 'Plano de ação' },
+  { id: 'curriculo', label: 'Currículo ATS' },
 ]
 
 function carregarConclusoes(idAnalise: string): Record<string, boolean> {
@@ -91,15 +91,15 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
         <div className="mx-auto max-w-5xl">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <span className="rounded-full border border-[var(--color-line)] bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-primary-bright)]">
-              Agente de carreira - relatÃ³rio personalizado
+              Agente de carreira - relatório personalizado
             </span>
             <div className="flex flex-wrap gap-3 print:hidden">
               <ExportarPdfButton />
               <Button variant="secondary" onClick={onReanalisar}>
-                Recalcular anÃ¡lise
+                Recalcular análise
               </Button>
               <Button variant="ghost" onClick={onReiniciar}>
-                Nova anÃ¡lise
+                Nova análise
               </Button>
             </div>
           </div>
@@ -107,10 +107,10 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
           <div className="grid gap-6 lg:grid-cols-[1fr_320px] lg:items-end">
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-muted)]">
-                RelatÃ³rio de {candidato.nome || 'candidato'} Â· gerado em {formatarDataAnalise(analise.dataAnalise)}
+                Relatório de {candidato.nome || 'candidato'} · gerado em {formatarDataAnalise(analise.dataAnalise)}
               </p>
               <h1 className="mt-1 font-display text-4xl font-semibold tracking-tight text-[var(--color-ink)]">
-                Sua anÃ¡lise de carreira
+                Sua análise de carreira
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--color-ink-soft)]">
                 {analise.resumoProfissional}
@@ -139,7 +139,7 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                   <p className="font-mono text-6xl font-black leading-none text-[var(--color-primary)]">
                     {analise.scoreEmpregabilidade}
                   </p>
-                  <p className="mt-1 text-xs text-[var(--color-muted)]">PontuaÃ§Ã£o global</p>
+                  <p className="mt-1 text-xs text-[var(--color-muted)]">Pontuação global</p>
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-[var(--color-ink)]">
@@ -182,7 +182,7 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
               <ReportCard title="Caminhos profissionais para explorar">
                 <div className="grid gap-4">
                   <p className="text-sm leading-relaxed text-[var(--color-ink-soft)]">
-                    Como vocÃª ainda nÃ£o definiu um objetivo profissional, estas sugestÃµes sÃ£o mais amplas e usam apenas evidÃªncias declaradas no seu perfil.
+                    Como você ainda não definiu um objetivo profissional, estas sugestões são mais amplas e usam apenas evidências declaradas no seu perfil.
                   </p>
                   {resultado.sugestoesCarreira.map((sugestao) => (
                     <div key={sugestao.id} className="rounded-lg border border-[var(--color-line)] p-4">
@@ -191,7 +191,7 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                           <h3 className="font-semibold text-[var(--color-ink)]">{sugestao.area}</h3>
                           <p className="mt-1 text-sm text-[var(--color-ink-soft)]">{sugestao.mensagemCautelosa}</p>
                           <p className="mt-2 text-xs text-[var(--color-muted)]">
-                            Afinidade estimada: {sugestao.afinidadeEstimada}% Â· confianÃ§a: {Math.round(sugestao.confianca * 100)}%
+                            Afinidade estimada: {sugestao.afinidadeEstimada}% · confiança: {Math.round(sugestao.confianca * 100)}%
                           </p>
                         </div>
                         <Button variant="secondary" onClick={() => onEscolherSugestao(sugestao)}>
@@ -200,7 +200,7 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                       </div>
                       <div className="mt-3 grid gap-2 text-sm text-[var(--color-ink-soft)]">
                         <p><strong>Cargos de entrada:</strong> {sugestao.cargosEntrada.join(', ')}</p>
-                        <p><strong>EvidÃªncias:</strong> {sugestao.evidencias.slice(0, 3).join(' ')}</p>
+                        <p><strong>Evidências:</strong> {sugestao.evidencias.slice(0, 3).join(' ')}</p>
                         <p><strong>Lacunas:</strong> {sugestao.lacunas.slice(0, 3).join(', ')}</p>
                         <p><strong>Primeiro passo:</strong> {sugestao.acaoPraticaInicial}</p>
                       </div>
@@ -214,10 +214,10 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
               <ReportCard title="Como o score foi montado">
                 <ScoreBreakdownChart detalhes={analise.pontuacaoDetalhes} />
               </ReportCard>
-              <ReportCard title="HistÃ³rico do score">
+              <ReportCard title="Histórico do score">
                 <ScoreHistoryChart historico={historico} />
               </ReportCard>
-              <ReportCard title="Benchmark da Ã¡rea">
+              <ReportCard title="Benchmark da área">
                 <BenchmarkCard analise={analise} area={candidato.areaInteresse.nome} />
               </ReportCard>
               <ReportCard title="Simulador e se" className="print:hidden">
@@ -226,37 +226,37 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
             </section>
 
             {resultado.contextoExterno?.github && (
-              <ReportCard title="ðŸ™ AnÃ¡lise real do GitHub">
+              <ReportCard title="Análise real do GitHub">
                 {(() => {
                   const github = resultado.contextoExterno!.github!
                   if (!github.encontrado) {
                     return (
                       <p className="text-sm leading-relaxed text-[var(--color-ink-soft)]">
-                        {github.erro ?? 'NÃ£o foi possÃ­vel analisar este perfil do GitHub agora.'}
+                        {github.erro ?? 'Não foi possível analisar este perfil do GitHub agora.'}
                       </p>
                     )
                   }
                   return (
                     <div className="grid gap-4 sm:grid-cols-3">
-                      <SmallStat label="RepositÃ³rios pÃºblicos" value={github.totalRepositoriosPublicos} />
+                      <SmallStat label="Repositórios públicos" value={github.totalRepositoriosPublicos} />
                       <SmallStat
                         label="README de perfil"
-                        value={github.temReadmePerfil ? 'Sim âœ…' : 'NÃ£o encontrado'}
+                        value={github.temReadmePerfil ? 'Sim' : 'Não encontrado'}
                       />
                       <SmallStat
-                        label="Ãšltima atividade"
+                        label="Última atividade"
                         value={
                           github.diasDesdeUltimaAtividade === null
                             ? 'Sem dados'
                             : github.diasDesdeUltimaAtividade <= 1
                               ? 'Hoje'
-                              : `HÃ¡ ${github.diasDesdeUltimaAtividade} dias`
+                              : `Há ${github.diasDesdeUltimaAtividade} dias`
                         }
                       />
                       <div className="sm:col-span-3">
                         <p className="mb-1.5 text-xs text-[var(--color-muted)]">Linguagens mais usadas</p>
                         {github.linguagens.length === 0 ? (
-                          <p className="text-sm text-[var(--color-muted)]">Nenhuma linguagem identificada nos repositÃ³rios pÃºblicos.</p>
+                          <p className="text-sm text-[var(--color-muted)]">Nenhuma linguagem identificada nos repositórios públicos.</p>
                         ) : (
                           <div className="flex flex-wrap gap-1.5">
                             {github.linguagens.map((linguagem) => (
@@ -271,7 +271,7 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                   )
                 })()}
                 <p className="mt-3 text-xs text-[var(--color-muted)]">
-                  Dados obtidos em tempo real via API pÃºblica do GitHub (github.com/{resultado.contextoExterno.github.usuario || '...'}).
+                  Dados obtidos em tempo real via API pública do GitHub (github.com/{resultado.contextoExterno.github.usuario || '...'}).
                 </p>
               </ReportCard>
             )}
@@ -300,9 +300,9 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
             </section>
 
             <section className="grid items-start gap-5 lg:grid-cols-2">
-              <ReportCard title="CompetÃªncias faltantes">
+              <ReportCard title="Competências faltantes">
                 {analise.competenciasFaltantes.length === 0 ? (
-                  <p className="text-sm text-[var(--color-muted)]">Nenhuma lacuna crÃ­tica identificada.</p>
+                  <p className="text-sm text-[var(--color-muted)]">Nenhuma lacuna crítica identificada.</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {analise.competenciasFaltantes.map((competencia) => (
@@ -317,7 +317,7 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                 {resultado.atsAnalise ? (
                   <AtsCompatibilityCard resultado={resultado.atsAnalise} />
                 ) : (
-                  <p className="text-sm text-[var(--color-muted)]">AnÃ¡lise de ATS nÃ£o disponÃ­vel para este relatÃ³rio.</p>
+                  <p className="text-sm text-[var(--color-muted)]">Análise de ATS não disponível para este relatório.</p>
                 )}
               </ReportCard>
             </section>
@@ -331,21 +331,21 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                     return (
                       <div key={certificado.idCertificado} className="rounded-lg bg-[var(--color-well)] p-4">
                         <p className="text-sm font-semibold text-[var(--color-ink)]">
-                          {certificado.titulo || 'Certificado sem tÃ­tulo'}
+                          {certificado.titulo || 'Certificado sem título'}
                         </p>
                         <p className="mt-1 text-xs text-[var(--color-muted)]">
-                          {certificado.instituicao || 'InstituiÃ§Ã£o nÃ£o informada'}
+                          {certificado.instituicao || 'Instituição não informada'}
                           {certificado.cargaHoraria ? ` - ${certificado.cargaHoraria}` : ''}
                         </p>
                         {certificado.nomeArquivo && (
                           <p className="mt-2 text-xs text-[var(--color-primary-bright)]">
-                            EvidÃªncia anexada: {certificado.nomeArquivo}
+                            Evidência anexada: {certificado.nomeArquivo}
                           </p>
                         )}
                         {competenciasDetectadas.length > 0 && (
                           <div className="mt-2">
                             <p className="mb-1 text-[11px] text-[var(--color-muted)]">
-                              CompetÃªncias identificadas no conteÃºdo do arquivo:
+                              Competências identificadas no conteúdo do arquivo:
                             </p>
                             <div className="flex flex-wrap gap-1">
                               {competenciasDetectadas.map((competencia) => (
@@ -363,7 +363,7 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
               </ReportCard>
             )}
 
-            <ReportCard title="SugestÃµes para o currÃ­culo">
+            <ReportCard title="Sugestões para o currículo">
               <ul className="grid gap-2">
                 {analise.sugestoesCurriculo.map((sugestao) => (
                   <li key={sugestao} className="text-sm leading-relaxed text-[var(--color-ink-soft)]">
@@ -398,19 +398,19 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                       {meta ? (
                         <>
                           {meta.usouFallback || temVagasDemonstracao ? (
-                            <span>ðŸ§ª Fonte: vagas de demonstraÃ§Ã£o</span>
+                            <span>Fonte: vagas de demonstração</span>
                           ) : fonteRealFalhou ? (
-                            <span>ðŸŒ Fonte real indisponÃ­vel nesta consulta</span>
+                            <span>Fonte real indisponível nesta consulta</span>
                           ) : (
-                            <span>ðŸŒ Fonte: JSearch</span>
+                            <span>Fonte: JSearch</span>
                           )}
-                          {' Â· '}
+                          {' · '}
                           {totalVagasEncontradas} vaga{totalVagasEncontradas === 1 ? '' : 's'} encontrada{totalVagasEncontradas === 1 ? '' : 's'}
-                          {' Â· '}
+                          {' · '}
                           {totalVagasRecentes} recente{totalVagasRecentes === 1 ? '' : 's'}
-                          {' Â· '}
+                          {' · '}
                           {recomendacoes.length} recomendada{recomendacoes.length === 1 ? '' : 's'}
-                          {' Â· '}
+                          {' · '}
                           Resultados consultados em {new Date(meta.consultadoEm).toLocaleString('pt-BR')}
                           {meta.deCache ? ' (em cache)' : ''}
                           {temVagasReais
@@ -426,13 +426,13 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                       onClick={() => onAtualizarVagas()}
                       title="Atualizar consulta novamente a fonte de vagas e pode consumir parte da cota gratuita."
                     >
-                      ðŸ”„ Atualizar vagas
+                      Atualizar vagas
                     </Button>
                   </div>
 
                   {candidato.objetivoProfissional.modo === 'exploracao' && (
                     <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-canvas-raised)] px-4 py-3 text-sm leading-relaxed text-[var(--color-muted)]">
-                      Como vocÃª ainda nÃ£o definiu um objetivo profissional, estas recomendaÃ§Ãµes sÃ£o mais amplas. Escolher uma Ã¡rea ou cargo aumentarÃ¡ a precisÃ£o.
+                      Como você ainda não definiu um objetivo profissional, estas recomendações são mais amplas. Escolher uma área ou cargo aumentará a precisão.
                     </div>
                   )}
 
@@ -444,8 +444,8 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
 
                   {temVagasDemonstracao && (
                     <div className="rounded-xl border border-[rgba(245,158,11,0.25)] bg-[rgba(245,158,11,0.08)] px-4 py-3 text-sm text-[var(--color-score-mid)]">
-                      <strong>ðŸ§ª Vagas de demonstraÃ§Ã£o:</strong> nenhuma fonte real de vagas estÃ¡ conectada ainda â€” as vagas
-                      abaixo servem para validar a anÃ¡lise de compatibilidade, nÃ£o para candidatura real.
+                      <strong>Vagas de demonstração:</strong> nenhuma fonte real de vagas está conectada ainda; as vagas
+                      abaixo servem para validar a análise de compatibilidade, não para candidatura real.
                     </div>
                   )}
 
@@ -459,7 +459,7 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                     </div>
                   )}
                   {vagasAgora.length === 0 ? (
-                    <ReportCard title="Nenhuma vaga de alta aderÃªncia ainda">
+                    <ReportCard title="Nenhuma vaga de alta aderência ainda">
                       <p className="text-sm leading-relaxed text-[var(--color-ink-soft)]">
                         {recomendacoes.length === 0 && totalVagasRecentes > 0 ? (
                           `${totalVagasRecentes} vaga${totalVagasRecentes === 1 ? '' : 's'} recente${totalVagasRecentes === 1 ? '' : 's'} foram avaliadas, mas nenhuma atingiu o corte de 70% de compatibilidade para recomendacao.`
@@ -477,7 +477,7 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                   )}
 
                   <div className="mt-2 rounded-xl border border-[rgba(245,158,11,0.25)] bg-[rgba(245,158,11,0.08)] px-4 py-3 text-sm text-[var(--color-score-mid)]">
-                    <strong>ðŸ‘ï¸ Fique de olho:</strong> boa aderÃªncia, mas vale reforÃ§ar algum requisito antes ou acompanhar a vaga.
+                    <strong>Fique de olho:</strong> boa aderência, mas vale reforçar algum requisito antes ou acompanhar a vaga.
                   </div>
                   {vagasMonitorar.length === 0 ? (
                     <ReportCard title="Nada para monitorar no momento">
@@ -486,7 +486,7 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                           'Nenhuma vaga ficou na faixa de monitoramento desta consulta.'
                         ) : (
                           <>
-                        Todas as vagas encontradas jÃ¡ estÃ£o na faixa de candidatura imediata.
+                        Todas as vagas encontradas já estão na faixa de candidatura imediata.
                           </>
                         )}
                       </p>
@@ -495,7 +495,7 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                     vagasMonitorar.map((recomendacao) => <VagaCard key={recomendacao.vaga.id} recomendacao={recomendacao} />)
                   )}
 
-                  <ReportCard title="ðŸ” Onde monitorar vagas agora">
+                  <ReportCard title="Onde monitorar vagas agora">
                     <div className="flex flex-col gap-2">
                       {plataformas.map((plataforma) => (
                         <div key={plataforma.nome} className="rounded-lg bg-[var(--color-well)] p-3">
@@ -506,7 +506,7 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                               rel="noreferrer"
                               className="text-sm font-semibold text-[var(--color-primary)] hover:underline"
                             >
-                              {plataforma.nome} â†—
+                              {plataforma.nome} ↗
                             </a>
                           ) : (
                             <p className="text-sm font-semibold text-[var(--color-ink)]">{plataforma.nome}</p>
@@ -517,20 +517,20 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                     </div>
                   </ReportCard>
 
-                  <ReportCard title="ðŸ“ˆ PadrÃµes do mercado para seu perfil">
+                  <ReportCard title="Padrões do mercado para seu perfil">
                     <MarketPatternChart itens={padraoMercado} />
                   </ReportCard>
 
-                  <ReportCard title="ðŸŽ“ Recursos para desenvolver o que falta (gratuitos)">
+                  <ReportCard title="Recursos para desenvolver o que falta (gratuitos)">
                     <RecursosEstudoList recursos={recursos} />
                   </ReportCard>
 
                   <ReportCard title="Resumo dos filtros usados">
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                      <SmallStat label="RecÃªncia" value="AtÃ© 45 dias" />
-                      <SmallStat label="Modalidade" value={candidato.modalidadesPreferidas.join(', ') || 'Sem preferÃªncia informada'} />
-                      <SmallStat label="NÃ­vel" value={candidato.nivelExperiencia} />
-                      <SmallStat label="Ãrea considerada" value={areaCandidato?.nome ?? 'NÃ£o identificada'} />
+                      <SmallStat label="Recência" value="Até 45 dias" />
+                      <SmallStat label="Modalidade" value={candidato.modalidadesPreferidas.join(', ') || 'Sem preferência informada'} />
+                      <SmallStat label="Nível" value={candidato.nivelExperiencia} />
+                      <SmallStat label="Área considerada" value={areaCandidato?.nome ?? 'Não identificada'} />
                     </div>
                   </ReportCard>
                 </>
@@ -549,8 +549,8 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
               }
               const fases: Array<{ titulo: string; cor: string; tarefas: typeof analise.planoAcao }> = [
                 { titulo: 'Esta semana', cor: 'var(--color-score-low)', tarefas: [] },
-                { titulo: 'PrÃ³ximas semanas', cor: 'var(--color-score-mid)', tarefas: [] },
-                { titulo: 'Este mÃªs e alÃ©m', cor: 'var(--color-primary)', tarefas: [] },
+                { titulo: 'Próximas semanas', cor: 'var(--color-score-mid)', tarefas: [] },
+                { titulo: 'Este mês e além', cor: 'var(--color-primary)', tarefas: [] },
               ]
               analise.planoAcao.forEach((tarefa) => {
                 const dias = diasAte(tarefa.prazo)
@@ -561,9 +561,9 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
 
               return (
                 <>
-                  <ReportCard title="Plano de aÃ§Ã£o com progresso">
+                  <ReportCard title="Plano de ação com progresso">
                     <p className="text-sm text-[var(--color-muted)]">
-                      {totalConcluidas} de {analise.planoAcao.length} tarefas concluÃ­das neste navegador.
+                      {totalConcluidas} de {analise.planoAcao.length} tarefas concluídas neste navegador.
                     </p>
                   </ReportCard>
 
@@ -589,11 +589,11 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
               )
             })()}
 
-            <ReportCard title="Prioridade prÃ¡tica">
+            <ReportCard title="Prioridade prática">
               <div className="grid gap-3 lg:grid-cols-3">
-                <SmallStat label="Agora" value="Executar tarefas de alta prioridade e candidatar nas vagas elegÃ­veis." />
-                <SmallStat label="PrÃ³ximas semanas" value="Fechar competÃªncias faltantes que aparecem no relatÃ³rio." />
-                <SmallStat label="Retorno" value="Refazer a anÃ¡lise e comparar a evoluÃ§Ã£o no histÃ³rico do score." />
+                <SmallStat label="Agora" value="Executar tarefas de alta prioridade e candidatar nas vagas elegíveis." />
+                <SmallStat label="Próximas semanas" value="Fechar competências faltantes que aparecem no relatório." />
+                <SmallStat label="Retorno" value="Refazer a análise e comparar a evolução no histórico do score." />
               </div>
             </ReportCard>
           </div>

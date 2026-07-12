@@ -75,15 +75,13 @@ function textosDoCandidato(candidato: Candidato): string[] {
   return [
     candidato.areaInteresse.nome,
     candidato.areaInteresse.nomePersonalizado ?? '',
-    ...objetivo.preferenciasExploracao.atividadesPreferidas,
     ...objetivo.preferenciasExploracao.interesses,
-    ...objetivo.preferenciasExploracao.prefereTrabalharCom,
-    ...objetivo.preferenciasExploracao.ambientesPreferidos,
     ...candidato.competencias.map((competencia) => competencia.nome),
     ...candidato.experiencias.flatMap((experiencia) => [experiencia.cargo, experiencia.descricao]),
     ...candidato.escolaridades.map((escolaridade) => escolaridade.curso),
     ...candidato.certificados.map((certificado) => certificado.titulo),
     ...candidato.idiomas.map((idioma) => idioma.nome),
+    ...candidato.links.map((link) => `${link.tipo} ${link.url}`),
   ].filter(Boolean)
 }
 
@@ -136,7 +134,7 @@ export function gerarSugestoesCarreira(candidato: Candidato): SugestaoCarreira[]
           ? ['Ainda há pouca evidência declarada para estimar aderência com segurança.']
           : ['A sugestão indica afinidade inicial, mas não substitui teste prático da rotina.'],
         acaoPraticaInicial: caminho.acaoPraticaInicial,
-        mensagemCautelosa: 'Esta área pode combinar com seu perfil atual.',
+        mensagemCautelosa: 'Esta área pode combinar com seu perfil atual, com base nos dados declarados.',
       } satisfies SugestaoCarreira
     })
     .filter((sugestao) => sugestao.evidencias.length > 0)
@@ -145,30 +143,31 @@ export function gerarSugestoesCarreira(candidato: Candidato): SugestaoCarreira[]
 }
 
 export function sugestaoParaObjetivo(candidato: Candidato, sugestao: SugestaoCarreira): Candidato {
-  const objetivo = candidato.objetivoProfissional
-  const cargoDesejado = sugestao.cargosEntrada[0] ?? sugestao.area
+  const cargoOuArea = sugestao.cargosEntrada[0] ?? sugestao.area
+  const opcao: OpcaoObjetivoProfissional = {
+    id: `sugestao-${sugestao.id}`,
+    cargoOuArea,
+    nivelAlvo: 'Auxiliar',
+    tiposContratoAceitos: ['Indiferente'],
+    modalidadesAceitas: [Modalidade.REMOTO, Modalidade.HIBRIDO, Modalidade.PRESENCIAL],
+  }
+
   return {
     ...candidato,
+    modalidadesPreferidas: opcao.modalidadesAceitas,
     objetivoProfissional: {
-      ...objetivo,
       modo: 'definido',
-      cargoDesejado,
-      nivelAlvo: objetivo.nivelAlvo === 'Indiferente' ? 'Auxiliar' : objetivo.nivelAlvo,
-      areasSecundarias: objetivo.areasSecundarias,
-      tiposContratoAceitos: objetivo.tiposContratoAceitos.length ? objetivo.tiposContratoAceitos : ['Indiferente'],
-      modalidadesAceitas: objetivo.modalidadesAceitas.length ? objetivo.modalidadesAceitas : [Modalidade.REMOTO, Modalidade.HIBRIDO, Modalidade.PRESENCIAL],
-      conhecimentosPrioritarios: [...new Set([...objetivo.conhecimentosPrioritarios, ...sugestao.lacunas.slice(0, 2)])],
+      opcoes: [opcao],
+      preferenciasExploracao: candidato.objetivoProfissional.preferenciasExploracao,
     },
   }
 }
 
 export function sugestoesParaOpcoes(sugestoes: SugestaoCarreira[]): OpcaoObjetivoProfissional[] {
-  return sugestoes.slice(0, 3).map((sugestao, indice) => ({
+  return sugestoes.slice(0, 3).map((sugestao) => ({
     id: `sugestao-${sugestao.id}`,
     cargoOuArea: sugestao.cargosEntrada[0] ?? sugestao.area,
     nivelAlvo: 'Auxiliar',
-    prioridade: indice + 1,
-    principal: indice === 0,
     tiposContratoAceitos: ['Indiferente'],
     modalidadesAceitas: [Modalidade.REMOTO, Modalidade.HIBRIDO, Modalidade.PRESENCIAL],
   }))

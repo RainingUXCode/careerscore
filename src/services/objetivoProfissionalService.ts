@@ -5,29 +5,14 @@ import type {
   PreferenciasExploracao,
 } from '../types/models'
 import { Modalidade } from '../types/enums'
+import { separarValoresLista } from '../utils/listas'
 
 export const preferenciasExploracaoPadrao: PreferenciasExploracao = {
-  atividadesPreferidas: [],
-  atividadesEvitar: [],
-  prefereTrabalharCom: [],
-  rotinaOuVariedade: undefined,
-  individualOuEquipe: undefined,
-  ambientesPreferidos: [],
   interesses: [],
 }
 
 export const objetivoProfissionalPadrao: ObjetivoProfissional = {
   modo: 'exploracao',
-  cargoDesejado: '',
-  nivelAlvo: 'Indiferente',
-  areasSecundarias: [],
-  tiposContratoAceitos: ['Indiferente'],
-  modalidadesAceitas: [Modalidade.REMOTO, Modalidade.HIBRIDO, Modalidade.PRESENCIAL],
-  cidadeBusca: '',
-  estadoBusca: '',
-  paisBusca: 'Brasil',
-  aceitaMudanca: false,
-  conhecimentosPrioritarios: [],
   opcoes: [],
   preferenciasExploracao: preferenciasExploracaoPadrao,
 }
@@ -39,77 +24,79 @@ function texto(valor: unknown, fallback = ''): string {
 function arrayTexto(valor: unknown): string[] {
   return Array.isArray(valor)
     ? valor.map((item) => texto(item)).filter(Boolean)
-    : []
+    : typeof valor === 'string'
+      ? separarValoresLista(valor)
+      : []
 }
 
 function arrayComFallback<T>(valor: unknown, fallback: T[]): T[] {
   return Array.isArray(valor) && valor.length > 0 ? (valor as T[]) : fallback
 }
 
-function normalizarModo(valor: unknown, cargoDesejado: string): ModoObjetivoProfissional {
-  if (valor === 'definido' || valor === 'multiplas_opcoes' || valor === 'exploracao') return valor
-  return cargoDesejado ? 'definido' : 'exploracao'
+function normalizarOpcao(valor: unknown, indice: number): OpcaoObjetivoProfissional | undefined {
+  const dados = valor && typeof valor === 'object' ? (valor as Partial<OpcaoObjetivoProfissional>) : {}
+  const cargoOuArea = texto(dados.cargoOuArea)
+  if (!cargoOuArea) return undefined
+  return {
+    id: texto(dados.id, `objetivo-${indice + 1}`),
+    cargoOuArea,
+    nivelAlvo: dados.nivelAlvo ?? 'Indiferente',
+    tiposContratoAceitos: arrayComFallback(dados.tiposContratoAceitos, ['Indiferente']),
+    modalidadesAceitas: arrayComFallback(dados.modalidadesAceitas, [
+      Modalidade.REMOTO,
+      Modalidade.HIBRIDO,
+      Modalidade.PRESENCIAL,
+    ]),
+  }
 }
 
-function normalizarOpcoes(valor: unknown): OpcaoObjetivoProfissional[] {
-  if (!Array.isArray(valor)) return []
-  const opcoes = valor
-    .slice(0, 3)
-    .map((item, indice) => {
-      const dados = item && typeof item === 'object' ? (item as Partial<OpcaoObjetivoProfissional>) : {}
-      return {
-        id: texto(dados.id, `objetivo-${indice + 1}`),
-        cargoOuArea: texto(dados.cargoOuArea),
-        nivelAlvo: dados.nivelAlvo,
-        prioridade: typeof dados.prioridade === 'number' ? dados.prioridade : indice + 1,
-        principal: Boolean(dados.principal),
-        tiposContratoAceitos: arrayComFallback(dados.tiposContratoAceitos, objetivoProfissionalPadrao.tiposContratoAceitos),
-        modalidadesAceitas: arrayComFallback(dados.modalidadesAceitas, objetivoProfissionalPadrao.modalidadesAceitas),
-      }
-    })
-    .filter((opcao) => opcao.cargoOuArea)
+function normalizarOpcoes(dados: Record<string, unknown>): OpcaoObjetivoProfissional[] {
+  const opcoes = Array.isArray(dados.opcoes)
+    ? dados.opcoes
+        .slice(0, 3)
+        .map((opcao, indice) => normalizarOpcao(opcao, indice))
+        .filter((opcao): opcao is OpcaoObjetivoProfissional => Boolean(opcao))
+    : []
 
-  if (opcoes.length > 0 && !opcoes.some((opcao) => opcao.principal)) {
-    opcoes[0] = { ...opcoes[0], principal: true }
+  const cargoLegado = texto(dados.cargoDesejado)
+  if (opcoes.length === 0 && cargoLegado) {
+    return [
+      {
+        id: 'objetivo-1',
+        cargoOuArea: cargoLegado,
+        nivelAlvo: (dados.nivelAlvo as OpcaoObjetivoProfissional['nivelAlvo']) ?? 'Indiferente',
+        tiposContratoAceitos: arrayComFallback(dados.tiposContratoAceitos, ['Indiferente']),
+        modalidadesAceitas: arrayComFallback(dados.modalidadesAceitas, [
+          Modalidade.REMOTO,
+          Modalidade.HIBRIDO,
+          Modalidade.PRESENCIAL,
+        ]),
+      },
+    ]
   }
 
   return opcoes
 }
 
+function normalizarModo(valor: unknown, opcoes: OpcaoObjetivoProfissional[]): ModoObjetivoProfissional {
+  if (valor === 'exploracao') return 'exploracao'
+  if (valor === 'definido' || valor === 'multiplas_opcoes') return 'definido'
+  return opcoes.length > 0 ? 'definido' : 'exploracao'
+}
+
 function normalizarPreferenciasExploracao(valor: unknown): PreferenciasExploracao {
   const dados = valor && typeof valor === 'object' ? (valor as Partial<PreferenciasExploracao>) : {}
   return {
-    atividadesPreferidas: arrayTexto(dados.atividadesPreferidas),
-    atividadesEvitar: arrayTexto(dados.atividadesEvitar),
-    prefereTrabalharCom: arrayTexto(dados.prefereTrabalharCom) as PreferenciasExploracao['prefereTrabalharCom'],
-    rotinaOuVariedade: dados.rotinaOuVariedade,
-    individualOuEquipe: dados.individualOuEquipe,
-    ambientesPreferidos: arrayTexto(dados.ambientesPreferidos),
     interesses: arrayTexto(dados.interesses),
   }
 }
 
 export function normalizarObjetivoProfissional(valor: unknown): ObjetivoProfissional {
-  const dados = valor && typeof valor === 'object' ? (valor as Partial<ObjetivoProfissional>) : {}
-  const cargoDesejado = texto(dados.cargoDesejado)
-  const opcoes = normalizarOpcoes(dados.opcoes)
-  const preferenciasExploracao = normalizarPreferenciasExploracao(dados.preferenciasExploracao)
+  const dados = valor && typeof valor === 'object' ? (valor as Record<string, unknown>) : {}
+  const opcoes = normalizarOpcoes(dados)
   return {
-    ...objetivoProfissionalPadrao,
-    ...dados,
-    modo: normalizarModo(dados.modo, cargoDesejado),
-    cargoDesejado,
-    nivelAlvo: dados.nivelAlvo ?? objetivoProfissionalPadrao.nivelAlvo,
-    areasSecundarias: arrayTexto(dados.areasSecundarias),
-    tiposContratoAceitos: arrayComFallback(dados.tiposContratoAceitos, objetivoProfissionalPadrao.tiposContratoAceitos),
-    modalidadesAceitas: arrayComFallback(dados.modalidadesAceitas, objetivoProfissionalPadrao.modalidadesAceitas),
-    cidadeBusca: texto(dados.cidadeBusca),
-    estadoBusca: texto(dados.estadoBusca),
-    paisBusca: texto(dados.paisBusca, objetivoProfissionalPadrao.paisBusca) || objetivoProfissionalPadrao.paisBusca,
-    aceitaMudanca: Boolean(dados.aceitaMudanca),
-    conhecimentosPrioritarios: arrayTexto(dados.conhecimentosPrioritarios),
-    pretensaoSalarial: dados.pretensaoSalarial,
+    modo: normalizarModo(dados.modo, opcoes),
     opcoes,
-    preferenciasExploracao,
+    preferenciasExploracao: normalizarPreferenciasExploracao(dados.preferenciasExploracao),
   }
 }

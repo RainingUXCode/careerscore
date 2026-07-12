@@ -6,16 +6,15 @@ import { careerAnalysisEngine } from './engine/careerAnalysisEngine'
 
 const candidatoComObjetivo = criarCandidatoBase({
   objetivoProfissional: {
-    cargoDesejado: 'Assistente de RH',
-    nivelAlvo: 'Assistente',
-    areasSecundarias: [],
-    tiposContratoAceitos: ['CLT'],
-    modalidadesAceitas: [Modalidade.PRESENCIAL],
-    cidadeBusca: 'Joao Pessoa',
-    estadoBusca: 'PB',
-    paisBusca: 'Brasil',
-    aceitaMudanca: false,
-    conhecimentosPrioritarios: ['Excel', 'recrutamento'],
+    modo: 'definido',
+    opcoes: [{
+      id: 'obj-1',
+      cargoOuArea: 'Assistente de RH',
+      nivelAlvo: 'Assistente',
+      tiposContratoAceitos: ['CLT'],
+      modalidadesAceitas: [Modalidade.PRESENCIAL],
+    }],
+    preferenciasExploracao: { interesses: [] },
   },
   competencias: [
     { idCompetencia: 'comp-1', nome: 'Excel', tipo: TipoCompetencia.TECNICA },
@@ -35,7 +34,7 @@ describe('impacto do objetivo profissional', () => {
     const analise = analysisService.gerarAnalise(candidatoComObjetivo)
 
     expect(analise.planoAcao.some((acao) => acao.titulo.includes('Assistente de RH'))).toBe(true)
-    expect(analise.planoAcao.some((acao) => acao.descricao.includes('Excel'))).toBe(true)
+    expect(analise.planoAcao.some((acao) => acao.descricao.includes('competências já cadastradas'))).toBe(true)
   })
 
   it('curriculo ATS nao duplica links saneados', async () => {

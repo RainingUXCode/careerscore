@@ -6,7 +6,7 @@ import { DateInput } from './DateInput'
 
 interface Props {
   certificados: Certificado[]
-  adicionar: () => void
+  adicionar: (titulo?: string) => void
   atualizar: (id: string, patch: Partial<Certificado>) => void
   remover: (id: string) => void
   definirArquivo: (id: string, arquivo: File) => void
@@ -21,6 +21,13 @@ export function CertificadosSection({
   definirArquivo,
   removerArquivo,
 }: Props) {
+  function separarTitulo(id: string, valor: string) {
+    const partes = valor.split(',').map((item) => item.trim()).filter(Boolean)
+    if (partes.length <= 1) return
+    atualizar(id, { titulo: partes[0] })
+    partes.slice(1).forEach((titulo) => adicionar(titulo))
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {certificados.length === 0 && (
@@ -44,25 +51,26 @@ export function CertificadosSection({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
-              label="Curso ou certificacao"
+              label="Curso ou certificação"
               placeholder="Ex: React do Zero, AWS Cloud Practitioner..."
               value={certificado.titulo}
               onChange={(e) => atualizar(certificado.idCertificado, { titulo: e.target.value })}
+              onBlur={(e) => separarTitulo(certificado.idCertificado, e.target.value)}
             />
             <Input
-              label="Instituicao"
+              label="Instituição"
               placeholder="Ex: Alura, Coursera, DIO..."
               value={certificado.instituicao}
               onChange={(e) => atualizar(certificado.idCertificado, { instituicao: e.target.value })}
             />
             <Input
-              label="Carga horaria"
+              label="Carga horária"
               placeholder="Ex: 20h, 40h..."
               value={certificado.cargaHoraria ?? ''}
               onChange={(e) => atualizar(certificado.idCertificado, { cargaHoraria: e.target.value })}
             />
             <DateInput
-              label="Emissao"
+              label="Emissão"
               value={certificado.dataEmissao ?? ''}
               onChange={(valor) => atualizar(certificado.idCertificado, { dataEmissao: valor })}
             />
@@ -95,7 +103,7 @@ export function CertificadosSection({
         </Card>
       ))}
 
-      <Button variant="secondary" onClick={adicionar} className="self-start">
+      <Button variant="secondary" onClick={() => adicionar()} className="self-start">
         + Adicionar certificado
       </Button>
     </div>

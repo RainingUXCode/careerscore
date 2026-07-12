@@ -22,7 +22,6 @@ import {
   avaliarLocalizacao,
   avaliarModalidade,
   avaliarTipoContrato,
-  avaliarConhecimentosPrioritarios,
   avaliarFaixaSalarial,
 } from './compatibilidade/dimensoes'
 import { analisarExperienciasAnteriores } from './competenciasTransferiveisService'
@@ -111,7 +110,6 @@ export function calcularCompatibilidade(candidato: Candidato, vaga: VagaNormaliz
   const { dimensao: dimensaoLocalizacao, impeditivo: impeditivoLocalizacao } = avaliarLocalizacao(candidato, vaga)
   const dimensaoModalidade = avaliarModalidade(candidato, vaga)
   const dimensaoTipoContrato = avaliarTipoContrato(candidato, vaga)
-  const dimensaoConhecimentosPrioritarios = avaliarConhecimentosPrioritarios(candidato, vaga)
   const dimensaoFaixaSalarial = avaliarFaixaSalarial()
 
   const dimensoes = [
@@ -129,7 +127,6 @@ export function calcularCompatibilidade(candidato: Candidato, vaga: VagaNormaliz
     dimensaoLocalizacao,
     dimensaoModalidade,
     dimensaoTipoContrato,
-    dimensaoConhecimentosPrioritarios,
     dimensaoFaixaSalarial,
   ]
 

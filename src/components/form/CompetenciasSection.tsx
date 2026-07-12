@@ -74,7 +74,7 @@ function ListaTags({
         >
           {c.nome}
           <button onClick={() => remover(c.idCompetencia)} aria-label={`Remover ${c.nome}`} className="text-xs opacity-60 hover:opacity-100">
-            ✕
+            x
           </button>
         </span>
       ))}
@@ -105,7 +105,7 @@ export function CompetenciasSection({ competencias, areaInteresse, adicionar, re
       <div>
         <h3 className="mb-1 text-sm font-semibold text-[var(--color-ink)]">Competências técnicas</h3>
         <p className="mb-3 text-xs text-[var(--color-muted)]">
-          Clique nas sugestões abaixo ou escreva qualquer tecnologia ou ferramenta que você domina.
+          Clique nas sugestões abaixo ou escreva tecnologias e ferramentas separadas por vírgula.
         </p>
         <SugestoesChips
           sugestoes={sugestoesTecnicas}
@@ -128,7 +128,7 @@ export function CompetenciasSection({ competencias, areaInteresse, adicionar, re
       <div>
         <h3 className="mb-1 text-sm font-semibold text-[var(--color-ink)]">Competências comportamentais</h3>
         <p className="mb-3 text-xs text-[var(--color-muted)]">
-          Clique nas sugestões abaixo ou escreva a sua própria — não precisa se limitar à lista.
+          Escreva suas soft skills separadas por vírgula ou escolha uma sugestão.
         </p>
         <SugestoesChips
           sugestoes={sugestoesComportamentais}

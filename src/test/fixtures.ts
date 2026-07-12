@@ -1,10 +1,12 @@
 import type { Candidato } from '../types/models'
 import type { VagaNormalizada } from '../types/vaga'
 import { NomeArea, NivelExperiencia, Modalidade } from '../types/enums'
-import { objetivoProfissionalPadrao } from '../services/objetivoProfissionalService'
+import { objetivoProfissionalPadrao, normalizarObjetivoProfissional } from '../services/objetivoProfissionalService'
+
+type ObjetivoFixture = Partial<Candidato['objetivoProfissional']> & Record<string, unknown>
 
 type CandidatoFixture = Partial<Omit<Candidato, 'objetivoProfissional'>> & {
-  objetivoProfissional?: Partial<Candidato['objetivoProfissional']>
+  objetivoProfissional?: ObjetivoFixture
 }
 
 export function criarCandidatoBase(sobrescreve: CandidatoFixture = {}): Candidato {
@@ -17,16 +19,7 @@ export function criarCandidatoBase(sobrescreve: CandidatoFixture = {}): Candidat
     cidade: 'João Pessoa',
     estado: 'PB',
     areaInteresse: { idArea: 'area-1', nome: NomeArea.TECNOLOGIA_DADOS },
-    objetivoProfissional: {
-      ...objetivoProfissionalPadrao,
-      ...objetivoProfissional,
-      modo: objetivoProfissional?.modo ?? (objetivoProfissional?.cargoDesejado ? 'definido' : objetivoProfissionalPadrao.modo),
-      preferenciasExploracao: {
-        ...objetivoProfissionalPadrao.preferenciasExploracao,
-        ...objetivoProfissional?.preferenciasExploracao,
-      },
-      opcoes: objetivoProfissional?.opcoes ?? objetivoProfissionalPadrao.opcoes,
-    },
+    objetivoProfissional: normalizarObjetivoProfissional(objetivoProfissional ?? objetivoProfissionalPadrao),
     modalidadesPreferidas: [Modalidade.REMOTO],
     nivelExperiencia: NivelExperiencia.JUNIOR,
     escolaridades: [],
