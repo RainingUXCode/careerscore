@@ -258,3 +258,60 @@ describe('motor de compatibilidade multissetorial', () => {
     expect(dimensao.requisitosParciais.length).toBeGreaterThan(0)
   })
 })
+
+describe('elegibilidade por senioridade pretendida', () => {
+  function candidatoComNivel(nivelAlvo: 'Estágio' | 'Júnior') {
+    return criarCandidatoBase({
+      objetivoProfissional: {
+        modo: 'definido',
+        opcoes: [{
+          id: 'obj-1',
+          cargoOuArea: 'Desenvolvedor Front-end',
+          nivelAlvo,
+          tiposContratoAceitos: nivelAlvo === 'Estágio' ? [] : ['CLT'],
+          modalidadesAceitas: [Modalidade.REMOTO],
+        }],
+      },
+    })
+  }
+
+  it('objetivo Estágio exclui Pleno', () => {
+    const resultado = calcularCompatibilidade(
+      candidatoComNivel('Estágio'),
+      criarVagaBase({ senioridadeInformada: true, senioridade: 'Pleno', senioridadesPossiveis: ['Pleno'] }),
+    )
+
+    expect(resultado.impeditivos.some((impeditivo) => impeditivo.motivo === 'senioridade_incompativel')).toBe(true)
+  })
+
+  it('objetivo Estágio exclui Jr/Pl', () => {
+    const resultado = calcularCompatibilidade(
+      candidatoComNivel('Estágio'),
+      criarVagaBase({ senioridadeInformada: true, senioridade: 'Júnior', senioridadesPossiveis: ['Júnior', 'Pleno'] }),
+    )
+
+    expect(resultado.impeditivos.some((impeditivo) => impeditivo.motivo === 'senioridade_incompativel')).toBe(true)
+  })
+
+  it('objetivo Estágio mantém nível não informado com confiança reduzida', () => {
+    const resultado = calcularCompatibilidade(
+      candidatoComNivel('Estágio'),
+      criarVagaBase({ senioridadeInformada: false, senioridade: undefined, senioridadesPossiveis: undefined }),
+    )
+    const dimensao = resultado.dimensoes.find((item) => item.chave === 'senioridade')!
+
+    expect(resultado.impeditivos.some((impeditivo) => impeditivo.motivo === 'senioridade_incompativel')).toBe(false)
+    expect(dimensao.avaliada).toBe(false)
+    expect(dimensao.confianca).toBe(0)
+    expect(dimensao.justificativa).toContain('não informou a senioridade')
+  })
+
+  it('objetivo Júnior exclui Pleno', () => {
+    const resultado = calcularCompatibilidade(
+      candidatoComNivel('Júnior'),
+      criarVagaBase({ senioridadeInformada: true, senioridade: 'Pleno', senioridadesPossiveis: ['Pleno'] }),
+    )
+
+    expect(resultado.impeditivos.some((impeditivo) => impeditivo.motivo === 'senioridade_incompativel')).toBe(true)
+  })
+})

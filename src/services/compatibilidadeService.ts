@@ -91,7 +91,7 @@ function gerarRecomendacao(
 export function calcularCompatibilidade(candidato: Candidato, vaga: VagaNormalizada): ResultadoCompatibilidade {
   const dimensaoArea = avaliarArea(candidato, vaga)
   const dimensaoCargo = avaliarCargo(candidato, vaga)
-  const dimensaoSenioridade = avaliarSenioridade(candidato, vaga)
+  const { dimensao: dimensaoSenioridade, impeditivo: impeditivoSenioridade } = avaliarSenioridade(candidato, vaga)
   const dimensaoFormacao = avaliarFormacao(candidato, vaga)
   const dimensaoExperiencia = avaliarExperiencia(candidato, vaga)
   const dimensaoTecnicas = avaliarCompetenciasTecnicas(candidato, vaga)
@@ -132,6 +132,7 @@ export function calcularCompatibilidade(candidato: Candidato, vaga: VagaNormaliz
 
   const impeditivos: ImpeditivoCompatibilidade[] = [
     impeditivoIdioma && { descricao: impeditivoIdioma, motivo: 'idioma_obrigatorio_ausente' },
+    impeditivoSenioridade && { descricao: impeditivoSenioridade, motivo: 'senioridade_incompativel' },
     impeditivoLicenca && { descricao: impeditivoLicenca, motivo: 'licenca_obrigatoria_ausente' },
     impeditivoLocalizacao && { descricao: impeditivoLocalizacao, motivo: 'localizacao_incompativel' },
     impeditivoModalidade && { descricao: impeditivoModalidade, motivo: 'modalidade_incompativel' },

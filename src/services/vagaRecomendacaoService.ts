@@ -142,12 +142,11 @@ export const vagaRecomendacaoService = {
     const busca = construirBuscaObjetivo(candidato)
     const resultado = await jobAggregatorService.buscar(busca.filtros, opcoes)
 
-    const vagasRecentes = resultado.vagas
+    const vagasElegiveisPorPublico = resultado.vagas
       .filter((vaga) => candidatoElegivelParaPublicoDaVaga(candidato, vaga))
-      .filter(vagaRecente)
     const modalidadePreferida = modalidadePreferidaAtiva(candidato)
 
-    const recomendacoes = vagasRecentes
+    const vagasAvaliadas = vagasElegiveisPorPublico
       .map((vaga) => {
         const compatibilidade = calcularCompatibilidade(candidato, vaga)
         const compatibilidadeAjustada = busca.buscaAmpla
@@ -167,6 +166,12 @@ export const vagaRecomendacaoService = {
           buscaAmpla: busca.buscaAmpla,
         }
       })
+    const vagasElegiveisPorSenioridade = vagasAvaliadas.filter(
+      (item) => !item.compatibilidade.impeditivos.some((impeditivo) => impeditivo.motivo === 'senioridade_incompativel'),
+    )
+    const vagasRecentes = vagasElegiveisPorSenioridade.filter((item) => vagaRecente(item.vaga))
+
+    const recomendacoes = vagasRecentes
       // Nunca excluir só por nota baixa — só por impeditivos reais que o motor
       // já calcula (idioma eliminatório, licença obrigatória ausente,
       // localização objetivamente incompatível). Vagas encerradas já foram
@@ -188,7 +193,7 @@ export const vagaRecomendacaoService = {
       usouFallback: resultado.usouFallback,
       deCache: resultado.deCache,
       consultadoEm: resultado.consultadoEm,
-      totalVagasEncontradas: resultado.vagas.filter((vaga) => candidatoElegivelParaPublicoDaVaga(candidato, vaga)).length,
+      totalVagasEncontradas: vagasElegiveisPorSenioridade.length,
       totalVagasRecentes: vagasRecentes.length,
       statusFonteReal: resultado.statusFonteReal,
     }

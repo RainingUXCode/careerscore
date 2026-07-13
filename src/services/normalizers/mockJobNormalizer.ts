@@ -4,6 +4,7 @@ import { encontrarAreaPorTexto } from '../areaMatchService'
 import { classificarTipoRequisito } from './classificacaoRequisitoService'
 import { calcularConfiabilidadeDados } from '../confiabilidadeDadosService'
 import { classificarPublicoVaga } from '../publicoVagaService'
+import { inferirSenioridadeVaga } from '../senioridadeVagaService'
 
 /**
  * Formato "bruto" simulado do MockJobProvider — deliberadamente menos
@@ -52,6 +53,10 @@ function paraRequisitos(textos: string[], obrigatorio: boolean): RequisitoVaga[]
 
 export function normalizarVagaMock(bruta: VagaMockBruta): VagaNormalizada {
   const area = encontrarAreaPorTexto(bruta.areaTexto)
+  const senioridadeInferida = inferirSenioridadeVaga(bruta.titulo, bruta.descricao)
+  const senioridadesPossiveis = bruta.senioridadeTexto
+    ? [bruta.senioridadeTexto as NonNullable<VagaNormalizada['senioridade']>]
+    : senioridadeInferida.senioridadesPossiveis
 
   const base: Omit<VagaNormalizada, 'confiabilidadeDados'> = {
     id: `mock-${bruta.id}`,
@@ -65,8 +70,9 @@ export function normalizarVagaMock(bruta: VagaMockBruta): VagaNormalizada {
     areaId: area?.id ?? 'outro',
     cargoNormalizado: bruta.cargoTexto,
 
-    senioridade: bruta.senioridadeTexto as VagaNormalizada['senioridade'],
-    senioridadeInformada: Boolean(bruta.senioridadeTexto),
+    senioridade: senioridadesPossiveis[0],
+    senioridadesPossiveis: senioridadesPossiveis.length > 0 ? senioridadesPossiveis : undefined,
+    senioridadeInformada: senioridadesPossiveis.length > 0,
 
     tipoContrato: bruta.tipoContrato,
 

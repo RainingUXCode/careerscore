@@ -295,6 +295,79 @@ describe('construirFiltrosBusca', () => {
   })
 })
 
+describe('recomendação filtra senioridade incompatível', () => {
+  function candidatoEstagioFrontEnd() {
+    return criarCandidatoBase({
+      objetivoProfissional: {
+        modo: 'definido',
+        opcoes: [{
+          id: 'obj-1',
+          cargoOuArea: 'Desenvolvedor Front-end',
+          nivelAlvo: 'Estágio',
+          tiposContratoAceitos: [],
+          modalidadesAceitas: [Modalidade.REMOTO],
+        }],
+      },
+    })
+  }
+
+  it('vaga incompatível não entra em nenhuma faixa', async () => {
+    vi.spyOn(jobAggregatorService, 'buscar').mockResolvedValue({
+      vagas: [
+        criarVagaBase({
+          id: 'pleno-1',
+          titulo: 'Desenvolvedor(a) Frontend PL',
+          senioridadeInformada: true,
+          senioridade: 'Pleno',
+          senioridadesPossiveis: ['Pleno'],
+        }),
+      ],
+      fontesComFalha: [],
+      codigosErro: [],
+      usouFallback: false,
+      deCache: false,
+      consultadoEm: new Date().toISOString(),
+      statusFonteReal: 'com_vagas',
+    })
+
+    const resultado = await vagaRecomendacaoService.gerarRecomendacoes(candidatoEstagioFrontEnd())
+
+    expect(resultado.recomendacoes).toHaveLength(0)
+  })
+
+  it('contagem de vagas elegíveis exclui senioridade incompatível', async () => {
+    vi.spyOn(jobAggregatorService, 'buscar').mockResolvedValue({
+      vagas: [
+        criarVagaBase({
+          id: 'pleno-1',
+          titulo: 'Profissional Fullstack Pleno',
+          senioridadeInformada: true,
+          senioridade: 'Pleno',
+          senioridadesPossiveis: ['Pleno'],
+        }),
+        criarVagaBase({
+          id: 'sem-nivel-1',
+          titulo: 'Pessoa Desenvolvedora Front-end',
+          senioridadeInformada: false,
+          senioridade: undefined,
+          senioridadesPossiveis: undefined,
+        }),
+      ],
+      fontesComFalha: [],
+      codigosErro: [],
+      usouFallback: false,
+      deCache: false,
+      consultadoEm: new Date().toISOString(),
+      statusFonteReal: 'com_vagas',
+    })
+
+    const resultado = await vagaRecomendacaoService.gerarRecomendacoes(candidatoEstagioFrontEnd())
+
+    expect(resultado.totalVagasEncontradas).toBe(1)
+    expect(resultado.recomendacoes.map((item) => item.vaga.id)).toEqual(['sem-nivel-1'])
+  })
+})
+
 describe('elegibilidade PcD nas recomenda��es', () => {
   it('vaga exclusiva n�o ocupa faixas para usu�rio ineleg�vel', async () => {
     vi.spyOn(jobAggregatorService, 'buscar').mockResolvedValue({

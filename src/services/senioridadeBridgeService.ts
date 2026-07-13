@@ -4,6 +4,7 @@ import type { NivelSenioridadeVaga } from '../types/vaga'
 export const ordemSenioridadeVaga: Record<NivelSenioridadeVaga, number> = {
   Estágio: 0,
   Aprendiz: 0,
+  Trainee: 1,
   Assistente: 1,
   Auxiliar: 1,
   Júnior: 1,

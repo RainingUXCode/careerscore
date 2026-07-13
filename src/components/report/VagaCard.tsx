@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { VagaRecomendada } from '../../types/compatibilidade'
 import type { RecomendacaoCandidatura } from '../../types/compatibilidade'
 import { Badge } from '../ui/Badge'
+import { formatarSenioridadeVaga } from '../../services/senioridadeVagaService'
 
 const labelRecomendacao: Record<RecomendacaoCandidatura, string> = {
   recomendada: '✅ Candidatura recomendada',
@@ -89,7 +90,7 @@ export function VagaCard({ recomendacao }: { recomendacao: VagaRecomendada }) {
             <div className="rounded-lg bg-[var(--color-well)] p-4">
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">Nível</p>
               <p className="text-sm text-[var(--color-ink)]">
-                {vaga.senioridadeInformada ? vaga.senioridade : 'Nível não especificado pela empresa.'}
+                {formatarSenioridadeVaga(vaga)}
               </p>
             </div>
             <div className="rounded-lg bg-[var(--color-well)] p-4">

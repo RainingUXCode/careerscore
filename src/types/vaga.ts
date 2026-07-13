@@ -8,6 +8,7 @@ import type { Modalidade } from './enums'
 export type NivelSenioridadeVaga =
   | 'Estágio'
   | 'Aprendiz'
+  | 'Trainee'
   | 'Assistente'
   | 'Auxiliar'
   | 'Júnior'
@@ -99,6 +100,7 @@ export interface VagaNormalizada {
   cargoNormalizado?: string
 
   senioridade?: NivelSenioridadeVaga
+  senioridadesPossiveis?: NivelSenioridadeVaga[]
   senioridadeInformada: boolean
 
   tipoContrato?: TipoContratoVaga

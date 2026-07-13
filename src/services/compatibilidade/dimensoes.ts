@@ -12,6 +12,7 @@ import { pesosCompatibilidade } from '../../config/pesosCompatibilidade'
 import { contratosEfetivosDaOpcao } from '../objetivoContratoService'
 import { senioridadeAtualInferida } from '../nivelAtualService'
 import { modalidadePreferidaAtiva, modalidadesAceitasAtivas } from '../modalidadePreferenciaService'
+import { formatarSenioridadeVaga, senioridadeIncompativelComObjetivo } from '../senioridadeVagaService'
 
 function baseDimensao(chave: string, nome: string, peso: number): Omit<DimensaoCompatibilidade, 'avaliada' | 'confianca' | 'justificativa'> {
   return {
@@ -111,44 +112,57 @@ export function avaliarCargo(candidato: Candidato, vaga: VagaNormalizada): Dimen
 // ---------------------------------------------------------------------------
 // 3. Senioridade
 // ---------------------------------------------------------------------------
-export function avaliarSenioridade(candidato: Candidato, vaga: VagaNormalizada): DimensaoCompatibilidade {
+export function avaliarSenioridade(
+  candidato: Candidato,
+  vaga: VagaNormalizada,
+): { dimensao: DimensaoCompatibilidade; impeditivo?: string } {
   const chave = 'senioridade'
   const nome = 'Senioridade'
   const peso = pesosCompatibilidade.senioridade
 
   if (!vaga.senioridadeInformada || !vaga.senioridade) {
-    return naoAvaliada(chave, nome, peso, 'A empresa não informou o nível de experiência esperado para esta vaga.')
+    return { dimensao: naoAvaliada(chave, nome, peso, 'A empresa não informou a senioridade. Confirme antes de se candidatar.') }
   }
 
   const nivelAlvo = obterNivelAlvoAtivo(candidato)
   if (!nivelAlvo) {
-    return naoAvaliada(chave, nome, peso, 'Sem senioridade alvo definida no objetivo profissional.')
+    return { dimensao: naoAvaliada(chave, nome, peso, 'Sem senioridade alvo definida no objetivo profissional.') }
   }
   if (nivelAlvo === 'Indiferente') {
-    return naoAvaliada(chave, nome, peso, 'O objetivo profissional marcou senioridade indiferente.')
+    return { dimensao: naoAvaliada(chave, nome, peso, 'O objetivo profissional marcou senioridade indiferente.') }
   }
   const senioridadeAtual = senioridadeAtualInferida(candidato)
   const senioridadeReferencia =
     nivelAlvo && nivelAlvo !== 'Trainee' ? nivelAlvo : senioridadeAtual
 
   if (!senioridadeReferencia) {
-    return naoAvaliada(chave, nome, peso, 'Não há evidência suficiente para inferir o nível atual do candidato.')
+    return { dimensao: naoAvaliada(chave, nome, peso, 'Não há evidência suficiente para inferir o nível atual do candidato.') }
   }
 
-  const diferenca = Math.abs(ordemSenioridadeVaga[senioridadeReferencia] - ordemSenioridadeVaga[vaga.senioridade])
-  const nota = diferenca === 0 ? 10 : diferenca === 1 ? 6 : 2
+  const senioridadesPossiveis = vaga.senioridadesPossiveis?.length ? vaga.senioridadesPossiveis : [vaga.senioridade]
+  const incompativel = senioridadeIncompativelComObjetivo(nivelAlvo, senioridadesPossiveis)
+  const melhorDiferenca = Math.min(
+    ...senioridadesPossiveis.map((senioridade) => Math.abs(ordemSenioridadeVaga[senioridadeReferencia] - ordemSenioridadeVaga[senioridade])),
+  )
+  const nota = incompativel ? 0 : melhorDiferenca === 0 ? 10 : melhorDiferenca === 1 ? 6 : 2
+  const senioridadeVaga = formatarSenioridadeVaga(vaga)
 
   return {
-    ...baseDimensao(chave, nome, peso),
-    avaliada: true,
-    confianca: 0.8,
-    nota,
-    justificativa: senioridadeAtual
-      ? `Vaga busca nível "${vaga.senioridade}"; seu nível pretendido é "${senioridadeReferencia}" e o nível atual inferido é "${senioridadeAtual}".`
-      : `Vaga busca nível "${vaga.senioridade}"; comparação feita com o nível pretendido "${senioridadeReferencia}".`,
-    requisitosAtendidos: diferenca === 0 ? [vaga.senioridade] : [],
-    requisitosParciais: diferenca === 1 ? [vaga.senioridade] : [],
-    requisitosAusentes: diferenca > 1 ? [vaga.senioridade] : [],
+    dimensao: {
+      ...baseDimensao(chave, nome, peso),
+      avaliada: true,
+      confianca: senioridadesPossiveis.length > 1 ? 0.75 : 0.85,
+      nota,
+      justificativa: incompativel
+        ? `Vaga busca nível "${senioridadeVaga}", incompatível com o nível pretendido "${nivelAlvo}".`
+        : senioridadeAtual
+          ? `Vaga busca nível "${senioridadeVaga}"; seu nível pretendido é "${senioridadeReferencia}" e o nível atual inferido é "${senioridadeAtual}".`
+          : `Vaga busca nível "${senioridadeVaga}"; comparação feita com o nível pretendido "${senioridadeReferencia}".`,
+      requisitosAtendidos: melhorDiferenca === 0 && !incompativel ? senioridadesPossiveis : [],
+      requisitosParciais: melhorDiferenca === 1 && !incompativel ? senioridadesPossiveis : [],
+      requisitosAusentes: melhorDiferenca > 1 || incompativel ? senioridadesPossiveis : [],
+    },
+    impeditivo: incompativel ? `Vaga exige senioridade "${senioridadeVaga}", incompatível com o nível pretendido "${nivelAlvo}".` : undefined,
   }
 }
 

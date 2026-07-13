@@ -8,6 +8,7 @@ import { calcularConfiabilidadeDados } from '../confiabilidadeDadosService'
 import { competenciasReferenciaVagas } from '../../data/competenciasReferenciaVagas'
 import { normalizarTexto } from '../../utils/texto'
 import { classificarPublicoVaga } from '../publicoVagaService'
+import { inferirSenioridadeVaga } from '../senioridadeVagaService'
 
 function paraDataISO(valor?: string): string | undefined {
   if (!valor) return undefined
@@ -65,7 +66,9 @@ function paraFormacaoRequerida(educacao: JSearchRawJob['job_required_education']
  */
 export function normalizarVagaJSearch(bruta: JSearchRawJob): VagaNormalizada {
   const descricao = bruta.job_description ?? ''
+  const titulo = bruta.job_title ?? 'Título não informado'
   const area = encontrarAreaPorTexto(`${bruta.job_title ?? ''} ${descricao}`)
+  const senioridadeInferida = inferirSenioridadeVaga(titulo, descricao)
 
   const requisitos =
     bruta.job_required_skills && bruta.job_required_skills.length > 0
@@ -85,12 +88,14 @@ export function normalizarVagaJSearch(bruta: JSearchRawJob): VagaNormalizada {
     idExterno: bruta.job_id,
     fonte: { id: 'jsearch', nome: 'JSearch (LinkedIn, Indeed, Glassdoor e outros)', tipo: 'real' },
 
-    titulo: bruta.job_title ?? 'Título não informado',
+    titulo,
     empresa: bruta.employer_name ?? 'Empresa não informada',
     descricao,
 
     areaId: area?.id ?? 'outro',
-    senioridadeInformada: false,
+    senioridade: senioridadeInferida.senioridade,
+    senioridadesPossiveis: senioridadeInferida.senioridadesPossiveis.length > 0 ? senioridadeInferida.senioridadesPossiveis : undefined,
+    senioridadeInformada: senioridadeInferida.senioridadesPossiveis.length > 0,
 
     localizacao: {
       cidade: bruta.job_city ?? undefined,

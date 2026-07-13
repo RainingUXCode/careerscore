@@ -56,8 +56,20 @@ describe('normalizarVagaJSearch', () => {
     expect(vaga.modalidade).toBe('Remoto')
   })
 
-  it('senioridade nunca é inferida do título — sempre não informada nesta fonte', () => {
+  it('infere senioridade explícita do título da JSearch', () => {
     const vaga = normalizarVagaJSearch(vagaBrutaBase({ job_title: 'Senior Software Engineer' }))
+    expect(vaga.senioridadeInformada).toBe(true)
+    expect(vaga.senioridade).toBe('Sênior')
+  })
+
+  it('infere faixa múltipla do título da JSearch', () => {
+    const vaga = normalizarVagaJSearch(vagaBrutaBase({ job_title: 'Pessoa Desenvolvedora Front-end React Jr/Pl' }))
+    expect(vaga.senioridadeInformada).toBe(true)
+    expect(vaga.senioridadesPossiveis).toEqual(['Júnior', 'Pleno'])
+  })
+
+  it('sem senioridade no título ou descrição permanece não informada', () => {
+    const vaga = normalizarVagaJSearch(vagaBrutaBase({ job_title: 'Pessoa Desenvolvedora Front-end', job_description: 'Vaga para React.' }))
     expect(vaga.senioridadeInformada).toBe(false)
     expect(vaga.senioridade).toBeUndefined()
   })
