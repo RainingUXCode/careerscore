@@ -139,6 +139,24 @@ describe('JobAggregatorService', () => {
     expect(resultado.codigosErro).toEqual([])
   })
 
+  it('mantém statusFonteReal "vazia" mesmo quando o mock entra após fonte real sem vagas', async () => {
+    const realVazia: JobProvider = {
+      id: 'jsearch',
+      nome: 'JSearch',
+      tipo: 'real',
+      buscar: vi.fn().mockResolvedValue({ vagas: [], sucesso: true }),
+    }
+    const mock = providerFalso('mock', 'demonstracao', [criarVagaBase({ id: 'mock-1' })])
+    const agregador = new JobAggregatorService([realVazia, mock])
+    const resultado = await agregador.buscar({})
+
+    expect(resultado.vagas.every((vaga) => vaga.fonte.tipo === 'demonstracao')).toBe(true)
+    expect(resultado.usouFallback).toBe(true)
+    expect(resultado.statusFonteReal).toBe('vazia')
+    expect(resultado.fontesComFalha).toEqual([])
+    expect(resultado.codigosErro).toEqual([])
+  })
+
   it('statusFonteReal é "falhou" quando a fonte real não teve sucesso', async () => {
     const realFalhou: JobProvider = {
       id: 'jsearch',

@@ -462,8 +462,12 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
 
                   {temVagasDemonstracao && (
                     <div className="rounded-xl border border-[rgba(245,158,11,0.25)] bg-[rgba(245,158,11,0.08)] px-4 py-3 text-sm text-[var(--color-score-mid)]">
-                      <strong>Vagas de demonstração:</strong> nenhuma fonte real de vagas está conectada ainda; as vagas
-                      abaixo servem para validar a análise de compatibilidade, não para candidatura real.
+                      <strong>Vagas de demonstração:</strong>{' '}
+                      {fonteRealVazia
+                        ? 'a fonte real respondeu, mas não encontrou vagas para os filtros atuais; as vagas abaixo servem apenas para validar a análise de compatibilidade, não para candidatura real.'
+                        : fonteRealFalhou
+                          ? 'a fonte real não pôde ser consultada nesta tentativa; as vagas abaixo servem apenas para validar a análise de compatibilidade, não para candidatura real.'
+                          : 'nenhuma fonte real de vagas está conectada ainda; as vagas abaixo servem para validar a análise de compatibilidade, não para candidatura real.'}
                     </div>
                   )}
 
