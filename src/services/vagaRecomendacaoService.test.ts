@@ -363,7 +363,11 @@ describe('recomendação filtra senioridade incompatível', () => {
 
     const resultado = await vagaRecomendacaoService.gerarRecomendacoes(candidatoEstagioFrontEnd())
 
+    const totalDistribuido = Object.values(resultado.distribuicaoFaixas).reduce((soma, quantidade) => soma + quantidade, 0)
+    expect(resultado.totalVagasRetornadas).toBe(2)
     expect(resultado.totalVagasEncontradas).toBe(1)
+    expect(resultado.totalVagasElegiveis).toBe(1)
+    expect(totalDistribuido).toBe(1)
     expect(resultado.recomendacoes.map((item) => item.vaga.id)).toEqual(['sem-nivel-1'])
   })
 })

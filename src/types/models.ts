@@ -234,8 +234,16 @@ export interface MetaVagas {
   usouFallback: boolean
   deCache: boolean
   consultadoEm: string
+  totalVagasRetornadas?: number
   totalVagasEncontradas: number
   totalVagasRecentes: number
+  totalVagasElegiveis?: number
+  distribuicaoFaixas?: {
+    alta80: number
+    media60a79: number
+    entrada40a59: number
+    preparacaoAbaixo40: number
+  }
   statusFonteReal: 'com_vagas' | 'vazia' | 'falhou' | 'sem_provider_real'
 }
 

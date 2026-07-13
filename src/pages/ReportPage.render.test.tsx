@@ -34,6 +34,49 @@ function criarRecomendacaoDemonstracao(): VagaRecomendada {
   }
 }
 
+function criarRecomendacaoComCompatibilidade(id: string, compatibilidadeGeral: number): VagaRecomendada {
+  return {
+    vaga: criarVagaBase({
+      id,
+      titulo: `Vaga ${id}`,
+      senioridadeInformada: false,
+      senioridade: undefined,
+    }),
+    compatibilidade: {
+      vagaId: id,
+      compatibilidadeGeral,
+      dimensoes: [
+        {
+          chave: 'senioridade',
+          nome: 'Senioridade',
+          pesoOriginal: 10,
+          pesoAplicado: 10,
+          avaliada: false,
+          confianca: 0,
+          justificativa: 'A empresa não informou a senioridade. Confirme antes de se candidatar.',
+          evidencias: [],
+          requisitosAtendidos: [],
+          requisitosParciais: [],
+          requisitosAusentes: [],
+          acoesRecomendadas: [],
+        },
+      ],
+      confiabilidade: {
+        percentual: 45,
+        dimensoesAvaliadas: 1,
+        totalDimensoes: 3,
+        dimensoesSemDados: ['Senioridade'],
+        resumo: 'Poucos dados fornecidos pela empresa.',
+      },
+      competenciasTransferiveis: [],
+      experienciasAnteriores: [],
+      impeditivos: [],
+      recomendacaoCandidatura: compatibilidadeGeral >= 40 ? 'avaliar_com_cuidado' : 'nao_recomendada',
+      motivosRecomendacao: ['aderência baixa aos requisitos identificados'],
+    },
+  }
+}
+
 describe('ReportPage', () => {
   it('renderiza relatorio com dados antigos que ainda possuem nivelExperiencia', () => {
     const candidato = criarCandidatoBase({ nivelExperiencia: NivelExperiencia.JUNIOR })
@@ -104,5 +147,74 @@ describe('ReportPage', () => {
     expect(html).not.toContain('nenhuma fonte real de vagas está conectada ainda')
     expect(html).not.toContain('Ver vaga')
     expect(html).not.toContain('Candidatar agora')
+  })
+
+  it('mostra cinco vagas em faixas inferiores sem sugerir zero resultados nas faixas superiores', () => {
+    const candidato = criarCandidatoBase({
+      nivelExperiencia: NivelExperiencia.JUNIOR,
+      objetivoProfissional: {
+        modo: 'definido',
+        opcoes: [{
+          id: 'obj-1',
+          cargoOuArea: 'Desenvolvedor Front-end',
+          nivelAlvo: 'Estágio',
+          tiposContratoAceitos: [],
+          modalidadesAceitas: [],
+        }],
+      },
+    })
+    const recomendacoes = [
+      criarRecomendacaoComCompatibilidade('entrada-1', 58),
+      criarRecomendacaoComCompatibilidade('entrada-2', 52),
+      criarRecomendacaoComCompatibilidade('entrada-3', 41),
+      criarRecomendacaoComCompatibilidade('preparo-1', 38),
+      criarRecomendacaoComCompatibilidade('preparo-2', 28),
+    ]
+    const resultado: ResultadoProcessamento = {
+      candidato,
+      analise: analysisService.gerarAnalise(candidato),
+      recomendacoes,
+      metaVagas: {
+        fontesComFalha: [],
+        codigosErro: [],
+        usouFallback: false,
+        deCache: false,
+        consultadoEm: new Date().toISOString(),
+        totalVagasRetornadas: 5,
+        totalVagasEncontradas: 5,
+        totalVagasRecentes: 5,
+        totalVagasElegiveis: 5,
+        distribuicaoFaixas: {
+          alta80: 0,
+          media60a79: 0,
+          entrada40a59: 3,
+          preparacaoAbaixo40: 2,
+        },
+        statusFonteReal: 'com_vagas',
+      },
+    }
+
+    const html = renderToStaticMarkup(
+      <ReportPage
+        resultado={resultado}
+        historico={[]}
+        onReanalisar={vi.fn()}
+        onReiniciar={vi.fn()}
+        onAtualizarVagas={vi.fn()}
+        onEscolherSugestao={vi.fn()}
+      />,
+    )
+
+    expect(html).toContain('5 vagas recomendadas')
+    expect(html).toContain('Encontramos 5 oportunidades, mas nenhuma atingiu alta aderência')
+    expect(html).toContain('Objetivo: Estágio em Desenvolvedor Front-end')
+    expect(html).toContain('Nível atual inferido:')
+    expect(html).toContain('80%+: 0')
+    expect(html).toContain('60-79%: 0')
+    expect(html).toContain('40-59%: 3')
+    expect(html).toContain('abaixo de 40%: 2')
+    expect(html).not.toContain('Nenhuma vaga nesta faixa ainda')
+    expect(html).toContain('Pode ser uma porta de entrada')
+    expect(html).toContain('Ainda exige preparação')
   })
 })

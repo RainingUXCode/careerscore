@@ -47,7 +47,7 @@ function App() {
     const sugestoesCarreira = candidatoAtual.objetivoProfissional.modo === 'exploracao'
       ? gerarSugestoesCarreira(candidatoAtual)
       : []
-    const { recomendacoes, fontesComFalha, codigosErro, usouFallback, deCache, consultadoEm, totalVagasEncontradas, totalVagasRecentes, statusFonteReal } =
+    const { recomendacoes, fontesComFalha, codigosErro, usouFallback, deCache, consultadoEm, totalVagasRetornadas, totalVagasEncontradas, totalVagasRecentes, totalVagasElegiveis, distribuicaoFaixas, statusFonteReal } =
       await vagaRecomendacaoService.gerarRecomendacoes(candidatoAtual)
     const padraoMercado = marketPatternService.calcularPadraoMercado(candidatoAtual, recomendacoes.map((r) => r.vaga))
     const atsAnalise = await careerAnalysisEngine.analisarAts({
@@ -67,7 +67,7 @@ function App() {
       atsAnalise,
       curriculoOtimizado,
       padraoMercado,
-      metaVagas: { fontesComFalha, codigosErro, usouFallback, deCache, consultadoEm, totalVagasEncontradas, totalVagasRecentes, statusFonteReal },
+      metaVagas: { fontesComFalha, codigosErro, usouFallback, deCache, consultadoEm, totalVagasRetornadas, totalVagasEncontradas, totalVagasRecentes, totalVagasElegiveis, distribuicaoFaixas, statusFonteReal },
       sugestoesCarreira,
     }
     setResultado(novoResultado)
@@ -78,14 +78,14 @@ function App() {
   /** Busca vagas de novo, ignorando o cache — só disparado pelo clique explícito em "Atualizar vagas". */
   async function atualizarVagas() {
     if (!resultado) return
-    const { recomendacoes, fontesComFalha, codigosErro, usouFallback, deCache, consultadoEm, totalVagasEncontradas, totalVagasRecentes, statusFonteReal } =
+    const { recomendacoes, fontesComFalha, codigosErro, usouFallback, deCache, consultadoEm, totalVagasRetornadas, totalVagasEncontradas, totalVagasRecentes, totalVagasElegiveis, distribuicaoFaixas, statusFonteReal } =
       await vagaRecomendacaoService.gerarRecomendacoes(resultado.candidato, { forcarAtualizacao: true })
     const padraoMercado = marketPatternService.calcularPadraoMercado(resultado.candidato, recomendacoes.map((r) => r.vaga))
     setResultado({
       ...resultado,
       recomendacoes,
       padraoMercado,
-      metaVagas: { fontesComFalha, codigosErro, usouFallback, deCache, consultadoEm, totalVagasEncontradas, totalVagasRecentes, statusFonteReal },
+      metaVagas: { fontesComFalha, codigosErro, usouFallback, deCache, consultadoEm, totalVagasRetornadas, totalVagasEncontradas, totalVagasRecentes, totalVagasElegiveis, distribuicaoFaixas, statusFonteReal },
     })
   }
 

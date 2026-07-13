@@ -20,8 +20,16 @@ export interface ResultadoRecomendacoes {
   usouFallback: boolean
   deCache: boolean
   consultadoEm: string
+  totalVagasRetornadas: number
   totalVagasEncontradas: number
   totalVagasRecentes: number
+  totalVagasElegiveis: number
+  distribuicaoFaixas: {
+    alta80: number
+    media60a79: number
+    entrada40a59: number
+    preparacaoAbaixo40: number
+  }
   statusFonteReal: StatusFonteReal
 }
 
@@ -137,6 +145,20 @@ function calcularAderenciaConhecimentos(candidato: Candidato, vaga: VagaNormaliz
   return conhecimentos.filter((conhecimento) => textoVaga.includes(conhecimento.toLowerCase())).length
 }
 
+function calcularDistribuicaoFaixas(recomendacoes: VagaRecomendada[]): ResultadoRecomendacoes['distribuicaoFaixas'] {
+  return recomendacoes.reduce<ResultadoRecomendacoes['distribuicaoFaixas']>(
+    (distribuicao, item) => {
+      const compatibilidade = item.compatibilidade.compatibilidadeGeral
+      if (compatibilidade >= 80) distribuicao.alta80 += 1
+      else if (compatibilidade >= 60) distribuicao.media60a79 += 1
+      else if (compatibilidade >= 40) distribuicao.entrada40a59 += 1
+      else distribuicao.preparacaoAbaixo40 += 1
+      return distribuicao
+    },
+    { alta80: 0, media60a79: 0, entrada40a59: 0, preparacaoAbaixo40: 0 },
+  )
+}
+
 export const vagaRecomendacaoService = {
   async gerarRecomendacoes(candidato: Candidato, opcoes: OpcoesBuscaVagas = {}): Promise<ResultadoRecomendacoes> {
     const busca = construirBuscaObjetivo(candidato)
@@ -193,8 +215,11 @@ export const vagaRecomendacaoService = {
       usouFallback: resultado.usouFallback,
       deCache: resultado.deCache,
       consultadoEm: resultado.consultadoEm,
+      totalVagasRetornadas: resultado.vagas.length,
       totalVagasEncontradas: vagasElegiveisPorSenioridade.length,
       totalVagasRecentes: vagasRecentes.length,
+      totalVagasElegiveis: recomendacoes.length,
+      distribuicaoFaixas: calcularDistribuicaoFaixas(recomendacoes),
       statusFonteReal: resultado.statusFonteReal,
     }
   },

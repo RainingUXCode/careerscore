@@ -32,9 +32,42 @@ function formatarSalario(vaga: VagaRecomendada['vaga']): string {
   return 'Salário não informado'
 }
 
+function principaisMotivosBaixaAderencia(recomendacao: VagaRecomendada): string[] {
+  const { vaga, compatibilidade } = recomendacao
+  const motivos: string[] = []
+  const dimensaoPorChave = new Map(compatibilidade.dimensoes.map((dimensao) => [dimensao.chave, dimensao]))
+  const senioridade = dimensaoPorChave.get('senioridade')
+  const cargo = dimensaoPorChave.get('cargo')
+  const tecnicas = dimensaoPorChave.get('competencias_tecnicas')
+  const localizacao = dimensaoPorChave.get('localizacao')
+  const modalidade = dimensaoPorChave.get('modalidade')
+
+  if (!vaga.senioridadeInformada || senioridade?.avaliada === false) {
+    motivos.push('Senioridade não informada pela empresa.')
+  }
+  if (cargo?.avaliada && (cargo.nota ?? 10) < 7) {
+    motivos.push('Cargo apenas parcialmente relacionado ao objetivo informado.')
+  }
+  if (tecnicas?.requisitosAusentes.length) {
+    motivos.push(`Requisitos técnicos ausentes: ${tecnicas.requisitosAusentes.slice(0, 3).join(', ')}.`)
+  }
+  if (compatibilidade.confiabilidade.percentual < 60) {
+    motivos.push('Poucos dados foram fornecidos pela empresa para avaliar a vaga com segurança.')
+  }
+  if (tecnicas?.requisitosParciais.length && !tecnicas.requisitosAusentes.length) {
+    motivos.push('Tecnologias relacionadas aparecem como aderência parcial, não equivalência total.')
+  }
+  if (modalidade?.avaliada === false || localizacao?.avaliada === false) {
+    motivos.push('Modalidade ou localização incertas na descrição da vaga.')
+  }
+
+  return motivos.slice(0, 4)
+}
+
 export function VagaCard({ recomendacao }: { recomendacao: VagaRecomendada }) {
   const { vaga, compatibilidade } = recomendacao
   const [expandida, setExpandida] = useState(false)
+  const motivosBaixaAderencia = compatibilidade.compatibilidadeGeral < 60 ? principaisMotivosBaixaAderencia(recomendacao) : []
 
   return (
     <article
@@ -125,6 +158,19 @@ export function VagaCard({ recomendacao }: { recomendacao: VagaRecomendada }) {
               ))}
             </ul>
           </div>
+
+          {motivosBaixaAderencia.length > 0 && (
+            <div className="mt-4 rounded-lg bg-[var(--color-well)] p-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-score-mid)]">
+                Por que a aderência ficou abaixo de 60%
+              </p>
+              <ul className="flex flex-col gap-1 text-sm text-[var(--color-ink-soft)]">
+                {motivosBaixaAderencia.map((motivo) => (
+                  <li key={motivo}>• {motivo}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div className="mt-4 grid gap-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">Dimensões da compatibilidade</p>

@@ -88,6 +88,18 @@ function formatarDataAnalise(iso: string): string {
   }).format(new Date(iso))
 }
 
+function obterRotuloObjetivo(candidato: ResultadoProcessamento['candidato']): string | undefined {
+  if (candidato.objetivoProfissional.modo !== 'definido') return undefined
+  const objetivo = candidato.objetivoProfissional.opcoes[0]
+  if (!objetivo) return undefined
+  const cargo = objetivo.cargoOuArea.trim()
+  const nivel = objetivo.nivelAlvo && objetivo.nivelAlvo !== 'Indiferente' ? objetivo.nivelAlvo : undefined
+  if (cargo && nivel) return `Objetivo: ${nivel} em ${cargo}`
+  if (cargo) return `Objetivo: ${cargo}`
+  if (nivel) return `Objetivo: ${nivel}`
+  return undefined
+}
+
 export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, onAtualizarVagas, onEscolherSugestao }: ReportPageProps) {
   const { candidato, analise, recomendacoes } = resultado
   const [abaAtiva, setAbaAtiva] = useState<AbaRelatorio>('perfil')
@@ -100,6 +112,7 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
   const portfolio = obterLink(candidato, 'portf')
   const certificados = candidato.certificados ?? []
   const nivelAtual = rotuloNivelAtual(candidato)
+  const objetivoPrincipal = obterRotuloObjetivo(candidato)
 
   function alternarConclusao(idPlano: string) {
     setTarefasConcluidas((atuais) => {
@@ -140,11 +153,16 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                 {analise.resumoProfissional}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
+                {objetivoPrincipal && (
+                  <span className="rounded-lg border border-[rgba(20,184,166,0.35)] bg-[rgba(20,184,166,0.12)] px-3 py-1.5 text-xs font-medium text-[var(--color-primary-bright)]">
+                    {objetivoPrincipal}
+                  </span>
+                )}
                 <span className="rounded-lg border border-[var(--color-line)] bg-white/5 px-3 py-1.5 text-xs text-[var(--color-muted)]">
                   {candidato.areaInteresse.nome}
                 </span>
                 <span className="rounded-lg border border-[var(--color-line)] bg-white/5 px-3 py-1.5 text-xs text-[var(--color-muted)]">
-                  {nivelAtual}
+                  Nível atual inferido: {nivelAtual}
                 </span>
                 <span className="rounded-lg border border-[var(--color-line)] bg-white/5 px-3 py-1.5 text-xs text-[var(--color-muted)]">
                   {candidato.cidade}, {candidato.estado}
@@ -441,8 +459,17 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
               const temVagasDemonstracao = recomendacoes.some((r) => r.vaga.fonte.tipo === 'demonstracao')
               const temVagasReais = recomendacoes.some((r) => r.vaga.fonte.tipo === 'real')
               const meta = resultado.metaVagas
+              const distribuicaoFaixas = meta?.distribuicaoFaixas ?? {
+                alta80: recomendacoes.filter((r) => r.compatibilidade.compatibilidadeGeral >= 80).length,
+                media60a79: recomendacoes.filter((r) => r.compatibilidade.compatibilidadeGeral >= 60 && r.compatibilidade.compatibilidadeGeral <= 79).length,
+                entrada40a59: recomendacoes.filter((r) => r.compatibilidade.compatibilidadeGeral >= 40 && r.compatibilidade.compatibilidadeGeral <= 59).length,
+                preparacaoAbaixo40: recomendacoes.filter((r) => r.compatibilidade.compatibilidadeGeral < 40).length,
+              }
               const totalVagasEncontradas = meta?.totalVagasEncontradas ?? recomendacoes.length
               const totalVagasRecentes = meta?.totalVagasRecentes ?? recomendacoes.length
+              const totalVagasElegiveis = meta?.totalVagasElegiveis ?? recomendacoes.length
+              const semAltaAderencia = recomendacoes.length > 0 && distribuicaoFaixas.alta80 === 0 && distribuicaoFaixas.media60a79 === 0
+              const temFaixasInferiores = distribuicaoFaixas.entrada40a59 + distribuicaoFaixas.preparacaoAbaixo40 > 0
               const fonteRealFalhou = meta?.statusFonteReal === 'falhou'
               const fonteRealVazia = meta?.statusFonteReal === 'vazia'
 
@@ -466,7 +493,9 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                           {' · '}
                           {totalVagasRecentes} recente{totalVagasRecentes === 1 ? '' : 's'}
                           {' · '}
-                          {recomendacoes.length} avaliada{recomendacoes.length === 1 ? '' : 's'} sem impeditivo
+                          {totalVagasElegiveis} {totalVagasElegiveis === 1 ? 'elegível' : 'elegíveis'} sem impeditivo
+                          {' · '}
+                          80%+: {distribuicaoFaixas.alta80} · 60-79%: {distribuicaoFaixas.media60a79} · 40-59%: {distribuicaoFaixas.entrada40a59} · abaixo de 40%: {distribuicaoFaixas.preparacaoAbaixo40}
                           {' · '}
                           Resultados consultados em {new Date(meta.consultadoEm).toLocaleString('pt-BR')}
                           {meta.deCache ? ' (em cache)' : ''}
@@ -516,6 +545,12 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                     </div>
                   )}
 
+                  {semAltaAderencia && temFaixasInferiores && (
+                    <div className="rounded-xl border border-[rgba(245,158,11,0.25)] bg-[rgba(245,158,11,0.08)] px-4 py-3 text-sm leading-relaxed text-[var(--color-score-mid)]">
+                      Encontramos {recomendacoes.length} oportunidade{recomendacoes.length === 1 ? '' : 's'}, mas nenhuma atingiu alta aderência nesta consulta. Veja abaixo as opções que podem servir como porta de entrada ou exigir preparação.
+                    </div>
+                  )}
+
                   {recomendacoes.length === 0 && (
                     <ReportCard title="Nenhuma vaga disponível para esta consulta">
                       <p className="text-sm leading-relaxed text-[var(--color-ink-soft)]">
@@ -533,6 +568,7 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                       (r) => r.compatibilidade.compatibilidadeGeral >= faixa.min && r.compatibilidade.compatibilidadeGeral <= faixa.max,
                     )
                     if (recomendacoes.length === 0) return null
+                    if (vagasDaFaixa.length === 0) return null
                     const usaTituloDemo = !temVagasReais && temVagasDemonstracao
 
                     return (
@@ -541,15 +577,7 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                           <strong>{usaTituloDemo ? faixa.tituloDemo : faixa.tituloReal}:</strong>{' '}
                           {usaTituloDemo ? faixa.descricaoDemo : faixa.descricaoReal}
                         </div>
-                        {vagasDaFaixa.length === 0 ? (
-                          <ReportCard title={`Nenhuma vaga nesta faixa ainda`}>
-                            <p className="text-sm leading-relaxed text-[var(--color-ink-soft)]">
-                              Nenhuma das {recomendacoes.length} vaga{recomendacoes.length === 1 ? '' : 's'} avaliada{recomendacoes.length === 1 ? '' : 's'} ficou entre {faixa.max === Infinity ? `${faixa.min}%+` : `${faixa.min}% e ${faixa.max}%`} de compatibilidade nesta consulta.
-                            </p>
-                          </ReportCard>
-                        ) : (
-                          vagasDaFaixa.map((recomendacao) => <VagaCard key={recomendacao.vaga.id} recomendacao={recomendacao} />)
-                        )}
+                        {vagasDaFaixa.map((recomendacao) => <VagaCard key={recomendacao.vaga.id} recomendacao={recomendacao} />)}
                       </div>
                     )
                   })}
