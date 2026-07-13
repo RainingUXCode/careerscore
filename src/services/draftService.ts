@@ -1,6 +1,8 @@
 import type { Candidato } from '../types/models'
 import { normalizarObjetivoProfissional } from './objetivoProfissionalService'
 import { sanitizarLinks } from './linksService'
+import { ajustarModalidadePreferida } from './modalidadePreferenciaService'
+import { inferirTipoFormacao } from './escolaridadeService'
 
 const CHAVE_RASCUNHO = 'careerscore:rascunho-candidato'
 
@@ -9,6 +11,7 @@ function escolherArray<T>(valor: unknown, fallback: T[]): T[] {
 }
 
 function montarCandidato(dados: Partial<Candidato>, fallback: Candidato): Candidato {
+  const modalidadesPreferidas = escolherArray(dados.modalidadesPreferidas, fallback.modalidadesPreferidas)
   return {
     ...fallback,
     ...dados,
@@ -17,8 +20,14 @@ function montarCandidato(dados: Partial<Candidato>, fallback: Candidato): Candid
       ...dados.areaInteresse,
     },
     objetivoProfissional: normalizarObjetivoProfissional(dados.objetivoProfissional ?? fallback.objetivoProfissional),
-    modalidadesPreferidas: escolherArray(dados.modalidadesPreferidas, fallback.modalidadesPreferidas),
-    escolaridades: escolherArray(dados.escolaridades, fallback.escolaridades),
+    modalidadesPreferidas,
+    modalidadePreferida: ajustarModalidadePreferida(modalidadesPreferidas, dados.modalidadePreferida),
+    disponibilidadeMudanca: dados.disponibilidadeMudanca ?? 'prefiro_nao_informar',
+    preferenciaVagasPcd: dados.preferenciaVagasPcd ?? 'prefiro_nao_informar',
+    escolaridades: escolherArray(dados.escolaridades, fallback.escolaridades).map((escolaridade) => ({
+      ...escolaridade,
+      tipoFormacao: escolaridade.tipoFormacao ?? inferirTipoFormacao(escolaridade),
+    })),
     experiencias: escolherArray(dados.experiencias, fallback.experiencias),
     competencias: escolherArray(dados.competencias, fallback.competencias),
     certificados: escolherArray(dados.certificados, fallback.certificados).map((certificado) => ({

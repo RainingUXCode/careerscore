@@ -1,4 +1,12 @@
-import type { Candidato, AnalisePerfil, PlanoAcao, PontuacaoDetalhes } from '../types/models'
+import type {
+  Candidato,
+  AnalisePerfil,
+  CategoriaPontuacaoDetalhe,
+  ChavePontuacaoDetalhes,
+  ItemChecklistPerfil,
+  PlanoAcao,
+  PontuacaoDetalhes,
+} from '../types/models'
 import { NomeArea, StatusCurso, TipoCompetencia } from '../types/enums'
 import { competenciasReferenciaPorArea } from '../data/competenciasReferencia'
 import { calcularDuracaoMeses } from '../utils/formatters'
@@ -6,12 +14,115 @@ import { gerarId } from '../utils/id'
 import type { GithubAnalise, ContextoExterno } from '../types/externo'
 import { categoriasPontuacao } from './benchmarkService'
 import { inferirNivelAtual, rotuloNivelAtual } from './nivelAtualService'
+import { inferirMaiorNivelEscolaridade, rotuloMaiorNivelEscolaridade } from './escolaridadeService'
+import { modalidadePreferidaAtiva, modalidadesAceitasAtivas } from './modalidadePreferenciaService'
 
 export type { ContextoExterno }
 
 interface Pontuacao {
   total: number
   detalhes: PontuacaoDetalhes
+}
+
+type AreaEvidencia = 'tecnologia' | 'design' | 'saude' | 'gestao' | 'outra'
+
+const MAXIMOS: Record<ChavePontuacaoDetalhes, number> = {
+  competenciasRelevantes: 30,
+  experienciaEvidencias: 25,
+  projetosEntregas: 20,
+  consistenciaPerfil: 15,
+  curriculoApresentacao: 10,
+}
+
+function normalizar(texto: string): string {
+  return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+}
+
+function deduplicarTextos(valores: string[]): string[] {
+  const vistos = new Set<string>()
+  return valores.filter((valor) => {
+    const chave = normalizar(valor.trim())
+    if (!chave || vistos.has(chave)) return false
+    vistos.add(chave)
+    return true
+  })
+}
+
+function limitar(pontos: number, maximo: number): number {
+  return Math.max(0, Math.min(maximo, Math.round(pontos)))
+}
+
+function categoria(
+  chave: ChavePontuacaoDetalhes,
+  titulo: string,
+  pontos: number,
+  justificativa: string,
+  evidencias: string[],
+  comoMelhorar: string[],
+): CategoriaPontuacaoDetalhe {
+  return {
+    chave,
+    titulo,
+    pontos: limitar(pontos, MAXIMOS[chave]),
+    maximo: MAXIMOS[chave],
+    justificativa,
+    evidencias: deduplicarTextos(evidencias).slice(0, 6),
+    comoMelhorar: deduplicarTextos(comoMelhorar).slice(0, 4),
+  }
+}
+
+function textoObjetivo(candidato: Candidato): string {
+  if (candidato.objetivoProfissional.modo === 'definido') {
+    return candidato.objetivoProfissional.opcoes.map((opcao) => opcao.cargoOuArea).join(' ')
+  }
+  return candidato.objetivoProfissional.preferenciasExploracao.interesses.join(' ')
+}
+
+function areaEvidencia(candidato: Candidato): AreaEvidencia {
+  const texto = normalizar(`${candidato.areaInteresse.nome} ${candidato.areaInteresse.nomePersonalizado ?? ''} ${textoObjetivo(candidato)}`)
+  if (candidato.areaInteresse.nome === NomeArea.TECNOLOGIA_DADOS || /tecnologia|dados|desenvolv|software|front|back|dev/.test(texto)) return 'tecnologia'
+  if (/design|ux|ui|produto visual|visual/.test(texto)) return 'design'
+  if (candidato.areaInteresse.nome === NomeArea.SAUDE || /saude|saúde|clinica|clínica|paciente|fisioterapia|enfermagem/.test(texto)) return 'saude'
+  if (candidato.areaInteresse.nome === NomeArea.GESTAO_NEGOCIOS || /rh|recurso|administra|gestao|gestão|negocio|negócio|financeiro/.test(texto)) return 'gestao'
+  return 'outra'
+}
+
+function linkTemTipoOuDominio(candidato: Candidato, termos: string[]): boolean {
+  return candidato.links.some((link) => {
+    const tipo = normalizar(link.tipo)
+    const url = normalizar(link.url)
+    return Boolean(link.url.trim()) && termos.some((termo) => tipo.includes(termo) || url.includes(termo))
+  })
+}
+
+function temLinkedIn(candidato: Candidato): boolean {
+  return linkTemTipoOuDominio(candidato, ['linkedin'])
+}
+
+function temGithub(candidato: Candidato): boolean {
+  return linkTemTipoOuDominio(candidato, ['github'])
+}
+
+function temPortfolio(candidato: Candidato): boolean {
+  return linkTemTipoOuDominio(candidato, ['portfolio', 'portf', 'behance', 'dribbble'])
+}
+
+function obterPlataformasEvidencia(candidato: Candidato): string {
+  const area = areaEvidencia(candidato)
+  if (area === 'tecnologia') return 'GitHub, deploy ou portfólio técnico'
+  if (area === 'design') return 'Behance, Dribbble ou portfólio visual'
+  if (area === 'saude') return 'atividades práticas, extensão, registro ou formação aplicada'
+  if (area === 'gestao') return 'LinkedIn, projetos, cases ou estudos aplicados'
+  return 'portfólio, projetos ou links profissionais relevantes'
+}
+
+function temEvidenciaPublicaAdequada(candidato: Candidato, github?: GithubAnalise): boolean {
+  const area = areaEvidencia(candidato)
+  if (area === 'tecnologia') return temGithub(candidato) || temPortfolio(candidato) || Boolean(github?.encontrado && github.totalRepositoriosPublicos > 0)
+  if (area === 'design') return temPortfolio(candidato)
+  if (area === 'saude') return candidato.escolaridades.length > 0 || candidato.experiencias.length > 0 || temPortfolio(candidato)
+  if (area === 'gestao') return temLinkedIn(candidato) || temPortfolio(candidato) || candidato.experiencias.length > 0
+  return temPortfolio(candidato) || temLinkedIn(candidato) || candidato.experiencias.length > 0
 }
 
 function candidatoEmInicioDeCarreira(candidato: Candidato): boolean {
@@ -23,155 +134,253 @@ function candidatoEmInicioDeCarreira(candidato: Candidato): boolean {
     || candidato.objetivoProfissional.modo === 'exploracao'
 }
 
-function normalizar(texto: string): string {
-  return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+function referenciasDaArea(candidato: Candidato): string[] {
+  const referencia = competenciasReferenciaPorArea[candidato.areaInteresse.nome] ?? []
+  const objetivo = textoObjetivo(candidato)
+    .split(/[\s,;/|-]+/)
+    .filter((parte) => parte.trim().length > 2)
+  return deduplicarTextos([...referencia, ...objetivo])
 }
 
-function areaPareceDesign(candidato: Candidato): boolean {
-  const area = normalizar(`${candidato.areaInteresse.nome} ${candidato.areaInteresse.nomePersonalizado ?? ''}`)
-  return area.includes('design') || area.includes('ux') || area.includes('ui')
+function competenciaEhRelevante(nome: string, referencias: string[], contexto?: ContextoExterno): boolean {
+  const competencia = normalizar(nome)
+  if (referencias.some((ref) => {
+    const normalizada = normalizar(ref)
+    return competencia.includes(normalizada) || normalizada.includes(competencia)
+  })) return true
+  if (contexto?.github?.linguagens.some((linguagem) => normalizar(linguagem) === competencia)) return true
+  return Object.values(contexto?.competenciasPorCertificado ?? {}).some((lista) =>
+    lista.some((item) => normalizar(item) === competencia),
+  )
 }
 
-function linkTemTipoOuDominio(candidato: Candidato, termos: string[]): boolean {
-  return candidato.links.some((link) => {
-    const tipo = normalizar(link.tipo)
-    const url = normalizar(link.url)
-    return Boolean(link.url.trim()) && termos.some((termo) => tipo.includes(termo) || url.includes(termo))
+function calcularCompetenciasRelevantes(candidato: Candidato, contexto?: ContextoExterno): CategoriaPontuacaoDetalhe {
+  const referencias = referenciasDaArea(candidato)
+  const competencias = deduplicarTextos(candidato.competencias.map((competencia) => competencia.nome))
+  const tecnicas = competencias.filter((nome) =>
+    candidato.competencias.some((competencia) => normalizar(competencia.nome) === normalizar(nome) && competencia.tipo === TipoCompetencia.TECNICA),
+  )
+  const comportamentais = competencias.filter((nome) =>
+    candidato.competencias.some((competencia) => normalizar(competencia.nome) === normalizar(nome) && competencia.tipo === TipoCompetencia.COMPORTAMENTAL),
+  )
+  const relevantes = competencias.filter((nome) => competenciaEhRelevante(nome, referencias, contexto))
+  const evidencias = [
+    relevantes.length > 0 ? `${relevantes.length} competência(s) alinhada(s) ao objetivo ou área.` : '',
+    tecnicas.length > 0 ? `${tecnicas.length} competência(s) técnica(s) declarada(s).` : '',
+    comportamentais.length > 0 ? `${comportamentais.length} competência(s) comportamental(is) declarada(s).` : '',
+    contexto?.github?.linguagens.length ? `GitHub reforça: ${contexto.github.linguagens.slice(0, 3).join(', ')}.` : '',
+  ].filter(Boolean)
+
+  const pontos = Math.min(relevantes.length * 4, 18)
+    + Math.min(tecnicas.length * 1.5, 5)
+    + Math.min(comportamentais.length * 1.5, 4)
+    + (tecnicas.length > 0 && comportamentais.length > 0 ? 2 : 0)
+    + (contexto?.github?.linguagens.length || Object.keys(contexto?.competenciasPorCertificado ?? {}).length ? 1 : 0)
+
+  return categoria(
+    'competenciasRelevantes',
+    'Competências relevantes',
+    pontos,
+    competencias.length === 0
+      ? 'Ainda há poucas competências declaradas para avaliar aderência com segurança.'
+      : 'A nota considera relevância, variedade e evidências; duplicatas e habilidades sem relação não inflam o score.',
+    evidencias,
+    ['Priorizar competências centrais do objetivo.', 'Evitar listas longas sem evidência prática.', 'Conectar habilidades a projetos, experiências ou certificados relevantes.'],
+  )
+}
+
+function experienciaRelacionada(expTexto: string, candidato: Candidato): boolean {
+  const texto = normalizar(expTexto)
+  return referenciasDaArea(candidato).some((ref) => {
+    const normalizada = normalizar(ref)
+    return normalizada.length > 3 && texto.includes(normalizada)
   })
 }
 
-function obterPlataformasEvidencia(candidato: Candidato): string {
-  if (candidato.areaInteresse.nome === NomeArea.TECNOLOGIA_DADOS) {
-    return 'GitHub ou portfólio técnico'
-  }
-
-  if (areaPareceDesign(candidato)) {
-    return 'Behance, Dribbble ou portfólio visual'
-  }
-
-  return 'LinkedIn, portfólio ou link profissional relevante'
+function experienciaTemTransferiveis(expTexto: string): boolean {
+  const texto = normalizar(expTexto)
+  return /atendimento|cliente|comunic|lideran|organiz|planej|negocia|conflito|document|meta|treinamento|equipe|analise|análise|resolver|projeto/.test(texto)
 }
 
-function temEvidenciaProjetos(candidato: Candidato): boolean {
-  if (candidato.areaInteresse.nome === NomeArea.TECNOLOGIA_DADOS) {
-    return linkTemTipoOuDominio(candidato, ['github', 'portf'])
-  }
-
-  if (areaPareceDesign(candidato)) {
-    return linkTemTipoOuDominio(candidato, ['behance', 'dribbble', 'portf'])
-  }
-
-  return linkTemTipoOuDominio(candidato, ['linkedin', 'portf', 'behance', 'dribbble'])
+function mencionaProjeto(texto: string): boolean {
+  return /projeto|portfolio|portfólio|case|campanha|extensao|extensão|prototipo|protótipo|publicado|deploy|github|behance|dribbble/.test(normalizar(texto))
 }
 
-function calcularPontuacaoExperiencia(candidato: Candidato): number {
-  if (candidato.experiencias.length === 0) {
-    const baseInicio = candidatoEmInicioDeCarreira(candidato) ? 4 : 0
-    const bonusProjeto = temEvidenciaProjetos(candidato) ? 2 : 0
-    return Math.min(baseInicio + bonusProjeto, 6)
+function calcularExperienciaEvidencias(candidato: Candidato, contexto?: ContextoExterno): CategoriaPontuacaoDetalhe {
+  const inicio = candidatoEmInicioDeCarreira(candidato)
+  const evidencias: string[] = []
+  let pontos = 0
+
+  if (candidato.experiencias.length > 0) {
+    const meses = candidato.experiencias.reduce(
+      (soma, exp) => soma + calcularDuracaoMeses(exp.dataInicio, exp.empregoAtual ? undefined : exp.dataFim || exp.dataInicio),
+      0,
+    )
+    const diretas = candidato.experiencias.filter((exp) => experienciaRelacionada(`${exp.cargo} ${exp.descricao}`, candidato))
+    const transferiveis = candidato.experiencias.filter((exp) => !experienciaRelacionada(`${exp.cargo} ${exp.descricao}`, candidato) && experienciaTemTransferiveis(`${exp.cargo} ${exp.descricao}`))
+    pontos += Math.min(diretas.length * 7, 14)
+    pontos += Math.min(transferiveis.length * 3, 6)
+    pontos += Math.min(meses / 6, 5)
+    evidencias.push(`${candidato.experiencias.length} experiência(s) cadastrada(s).`)
+    if (diretas.length > 0) evidencias.push(`${diretas.length} experiência(s) com relação direta ou textual com a área.`)
+    if (transferiveis.length > 0) evidencias.push(`${transferiveis.length} experiência(s) com competências transferíveis identificáveis.`)
+  } else if (inicio) {
+    pontos += 8
+    evidencias.push('Perfil de início de carreira não foi tratado como ausência total de evidência.')
   }
 
-  const mesesTotais = candidato.experiencias.reduce(
-    (soma, exp) => soma + calcularDuracaoMeses(exp.dataInicio, exp.empregoAtual ? undefined : exp.dataFim || exp.dataInicio),
-    0,
+  if (candidato.escolaridades.some((e) => e.status === StatusCurso.CURSANDO)) {
+    pontos += 4
+    evidencias.push('Formação em andamento pode substituir parcialmente a falta de vínculo formal.')
+  }
+  if (temEvidenciaPublicaAdequada(candidato, contexto?.github)) {
+    pontos += inicio ? 5 : 3
+    evidencias.push(`Há evidência prática adequada à área (${obterPlataformasEvidencia(candidato)}).`)
+  }
+
+  return categoria(
+    'experienciaEvidencias',
+    'Experiência e evidências práticas',
+    pontos,
+    'A dimensão pondera experiência direta, relacionada e transferível; não pontua apenas por meses ou quantidade de cargos.',
+    evidencias,
+    ['Descrever responsabilidades e resultados nas experiências.', 'Adicionar projetos acadêmicos, voluntários ou autônomos quando não houver experiência formal.', 'Explicar competências transferíveis na transição de carreira.'],
   )
-  const porQuantidade = Math.min(candidato.experiencias.length * 6, 18)
-  const porDuracao = Math.min(mesesTotais * 0.4, 12)
-  return Math.round(porQuantidade + porDuracao)
 }
 
-function calcularPontuacaoCompetencias(candidato: Candidato): number {
-  const tecnicas = candidato.competencias.filter((c) => c.tipo === TipoCompetencia.TECNICA)
-  const comportamentais = candidato.competencias.filter((c) => c.tipo === TipoCompetencia.COMPORTAMENTAL)
-  const porTecnicas = Math.min(tecnicas.length * 3, 18)
-  const porComportamentais = Math.min(comportamentais.length * 2, 7)
-  return Math.round(porTecnicas + porComportamentais)
-}
+function calcularProjetosEntregas(candidato: Candidato, contexto?: ContextoExterno): CategoriaPontuacaoDetalhe {
+  const area = areaEvidencia(candidato)
+  const evidencias: string[] = []
+  let pontos = 0
 
-function calcularPontuacaoEscolaridade(candidato: Candidato): number {
-  if (candidato.escolaridades.length === 0) return 0
-  const concluidas = candidato.escolaridades.filter((e) => e.status === StatusCurso.CONCLUIDO).length
-  const emAndamento = candidato.escolaridades.filter((e) => e.status === StatusCurso.CURSANDO).length
-  return Math.min(concluidas * 8 + emAndamento * 6, 16)
-}
-
-function calcularPontuacaoIdiomas(candidato: Candidato): number {
-  const pesoPorNivel: Record<string, number> = {
-    Básico: 1,
-    Intermediário: 2,
-    Avançado: 3,
-    Fluente: 4,
-    Nativo: 4,
+  if (temPortfolio(candidato)) {
+    pontos += area === 'design' ? 10 : 7
+    evidencias.push(area === 'design' ? 'Portfólio/Behance/Dribbble reconhecido como evidência principal para Design.' : 'Portfólio ou link profissional cadastrado.')
   }
-  const pontos = candidato.idiomas.reduce(
-    (soma, idioma) => soma + (pesoPorNivel[idioma.nivelProficiencia] ?? 0),
-    0,
+  if (area === 'tecnologia' && (temGithub(candidato) || contexto?.github?.encontrado)) {
+    pontos += 5
+    evidencias.push('GitHub considerado como evidência relevante para Tecnologia.')
+    if (contexto?.github?.totalRepositoriosPublicos) {
+      pontos += Math.min(contexto.github.totalRepositoriosPublicos, 4)
+      evidencias.push(`${contexto.github.totalRepositoriosPublicos} repositório(s) público(s) no GitHub.`)
+    }
+    if (contexto?.github?.temReadmePerfil) {
+      pontos += 1
+      evidencias.push('README de perfil no GitHub.')
+    }
+  }
+  if (candidato.experiencias.some((exp) => mencionaProjeto(`${exp.cargo} ${exp.descricao}`))) {
+    pontos += 4
+    evidencias.push('Experiências mencionam projetos, cases ou entregas.')
+  }
+  if (candidato.escolaridades.some((e) => e.status === StatusCurso.CURSANDO)) {
+    pontos += 2
+    evidencias.push('Formação em andamento pode gerar projetos acadêmicos ou de extensão.')
+  }
+  return categoria(
+    'projetosEntregas',
+    'Projetos e entregas demonstráveis',
+    pontos,
+    area === 'tecnologia'
+      ? 'Para tecnologia, GitHub e portfólio técnico contam como evidências fortes.'
+      : 'A evidência foi adaptada à área; GitHub não é exigido fora de contextos técnicos.',
+    evidencias,
+    ['Publicar pelo menos uma entrega revisável.', 'Documentar objetivo, ferramentas, resultados e contribuição individual.', `Usar evidências adequadas à área: ${obterPlataformasEvidencia(candidato)}.`],
   )
-  return Math.min(pontos * 2, 12)
 }
 
-function calcularPontuacaoPresencaDigital(candidato: Candidato, github?: GithubAnalise): number {
-  const linksValidos = candidato.links.filter((l) => l.url.trim().length > 0)
-  const pontosBase = Math.min(linksValidos.length * 2, 6)
-  const pontosLinkedin = linkTemTipoOuDominio(candidato, ['linkedin']) ? 3 : 0
-  const pontosEvidenciaArea = temEvidenciaProjetos(candidato) ? 4 : 0
+function calcularConsistenciaPerfil(candidato: Candidato, contexto?: ContextoExterno): CategoriaPontuacaoDetalhe {
+  const evidencias: string[] = []
+  let pontos = candidato.objetivoProfissional.modo === 'exploracao' ? 5 : 0
 
-  let pontosGithub = 0
-  if (github?.encontrado) {
-    pontosGithub += Math.min(github.totalRepositoriosPublicos, 5)
-    if (github.temReadmePerfil) pontosGithub += 2
-    if (github.diasDesdeUltimaAtividade !== null && github.diasDesdeUltimaAtividade <= 90) pontosGithub += 2
-    if (github.linguagens.length >= 2) pontosGithub += 1
+  if (candidato.objetivoProfissional.modo === 'definido' && candidato.objetivoProfissional.opcoes.some((opcao) => opcao.cargoOuArea.trim())) {
+    pontos += 4
+    evidencias.push('Objetivo profissional definido sem repetir localização.')
+  } else if (candidato.objetivoProfissional.modo === 'exploracao') {
+    evidencias.push('Modo exploração avaliado pela consistência interna dos dados, não pela ausência de cargo.')
+  }
+  if (calcularCompetenciasRelevantes(candidato, contexto).pontos >= 12) {
+    pontos += 4
+    evidencias.push('Competências têm relação perceptível com área ou objetivo.')
+  }
+  if (calcularExperienciaEvidencias(candidato, contexto).pontos >= 10 || calcularProjetosEntregas(candidato, contexto).pontos >= 8) {
+    pontos += 4
+    evidencias.push('Experiências ou projetos sustentam a direção profissional.')
+  }
+  if (temLinkedIn(candidato) || temPortfolio(candidato) || temGithub(candidato)) {
+    pontos += 2
+    evidencias.push('Links profissionais ajudam a confirmar a narrativa do perfil.')
   }
 
-  return Math.min(pontosBase + pontosLinkedin + pontosEvidenciaArea + pontosGithub, 18)
+  return categoria(
+    'consistenciaPerfil',
+    'Consistência do perfil profissional',
+    pontos,
+    'A dimensão observa coerência entre objetivo, competências, experiências, formação, projetos e links.',
+    evidencias,
+    ['Alinhar o resumo profissional ao objetivo.', 'Remover sinais contraditórios ou explicar transição de carreira.', 'Conectar formação, experiências e projetos à mesma narrativa.'],
+  )
 }
 
-function calcularPontuacaoCertificados(
-  candidato: Candidato,
-  competenciasPorCertificado?: Record<string, string[]>,
-): number {
-  const certificados = candidato.certificados ?? []
-  if (certificados.length === 0) return 0
+function calcularCurriculoApresentacao(candidato: Candidato): CategoriaPontuacaoDetalhe {
+  const evidencias: string[] = []
+  let pontos = 1
 
-  const certificadosPreenchidos = certificados.filter(
-    (certificado) => certificado.titulo.trim() || certificado.instituicao.trim(),
+  if (candidato.nome.trim() && candidato.email.trim() && candidato.telefone.trim()) {
+    pontos += 2
+    evidencias.push('Contato principal preenchido.')
+  }
+  if (candidato.cidade.trim() && candidato.estado.trim()) {
+    pontos += 1
+    evidencias.push('Cidade e estado estruturados no cadastro.')
+  }
+  if (candidato.competencias.length > 0) {
+    pontos += 2
+    evidencias.push('Dados estruturados de competências disponíveis.')
+  }
+  if (candidato.experiencias.length > 0 || candidato.escolaridades.length > 0) {
+    pontos += 2
+    evidencias.push('Formação ou experiência estruturada disponível.')
+  }
+  if (candidato.links.some((link) => link.url.trim())) {
+    pontos += 1
+    evidencias.push('Links profissionais cadastrados.')
+  }
+  if (candidato.curriculo) {
+    pontos += 1
+    evidencias.push('Currículo anexado melhora a confiança da análise.')
+  } else {
+    evidencias.push('Sem currículo anexado; o score usa dados estruturados do formulário.')
+  }
+
+  return categoria(
+    'curriculoApresentacao',
+    'Currículo e apresentação profissional',
+    pontos,
+    'Currículo anexado não é binário: dados estruturados suficientes mantêm a dimensão avaliada.',
+    evidencias,
+    ['Anexar currículo quando quiser refinar a análise.', 'Manter contato, formação, experiências e links coerentes.', 'Evitar divergência entre formulário e currículo.'],
   )
-  const comArquivo = certificadosPreenchidos.filter((certificado) => certificado.nomeArquivo || certificado.arquivo)
-  const pontosBase = certificadosPreenchidos.length * 2 + comArquivo.length
-
-  const totalCompetenciasDetectadas = Object.values(competenciasPorCertificado ?? {}).reduce(
-    (soma, lista) => soma + lista.length,
-    0,
-  )
-  const pontosTextoDetectado = Math.min(totalCompetenciasDetectadas, 4)
-  const limite = temEvidenciaProjetos(candidato) ? 8 : 14
-  return Math.min(pontosBase + pontosTextoDetectado, limite)
-}
-
-function calcularPontuacaoCurriculo(candidato: Candidato): number {
-  return candidato.curriculo ? 15 : 0
 }
 
 function calcularPontuacao(candidato: Candidato, contexto?: ContextoExterno): Pontuacao {
-  const detalhes = {
-    experiencia: calcularPontuacaoExperiencia(candidato),
-    competencias: calcularPontuacaoCompetencias(candidato),
-    escolaridade: calcularPontuacaoEscolaridade(candidato),
-    idiomas: calcularPontuacaoIdiomas(candidato),
-    presencaDigital: calcularPontuacaoPresencaDigital(candidato, contexto?.github),
-    certificados: calcularPontuacaoCertificados(candidato, contexto?.competenciasPorCertificado),
-    curriculo: calcularPontuacaoCurriculo(candidato),
+  const detalhes: PontuacaoDetalhes = {
+    competenciasRelevantes: calcularCompetenciasRelevantes(candidato, contexto),
+    experienciaEvidencias: calcularExperienciaEvidencias(candidato, contexto),
+    projetosEntregas: calcularProjetosEntregas(candidato, contexto),
+    consistenciaPerfil: calcularConsistenciaPerfil(candidato, contexto),
+    curriculoApresentacao: calcularCurriculoApresentacao(candidato),
   }
-  const totalBruto = Object.values(detalhes).reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0)
-  const totalPossivel = categoriasPontuacao.reduce((soma, categoria) => soma + categoria.maximo, 0)
-  const total = totalPossivel > 0 ? Math.min(100, Math.round((totalBruto / totalPossivel) * 100)) : 0
-  return { total, detalhes }
+  const totalPossivel = categoriasPontuacao.reduce((soma, categoriaPontuacao) => soma + categoriaPontuacao.maximo, 0)
+  const total = categoriasPontuacao.reduce((soma, categoriaPontuacao) => soma + detalhes[categoriaPontuacao.chave].pontos, 0)
+  if (totalPossivel !== 100) {
+    throw new Error(`Modelo de pontuação inválido: esperado 100 pontos, recebido ${totalPossivel}.`)
+  }
+  return { total: limitar(total, 100), detalhes }
 }
 
 function identificarCompetenciasFaltantes(candidato: Candidato, contexto?: ContextoExterno): string[] {
-  const area = candidato.areaInteresse.nome
-  const referencia = competenciasReferenciaPorArea[area] ?? []
+  const referencia = competenciasReferenciaPorArea[candidato.areaInteresse.nome] ?? []
   const nomesAtuais = new Set(candidato.competencias.map((c) => normalizar(c.nome)))
 
   contexto?.github?.linguagens.forEach((linguagem) => nomesAtuais.add(normalizar(linguagem)))
@@ -182,46 +391,159 @@ function identificarCompetenciasFaltantes(candidato: Candidato, contexto?: Conte
   return referencia.filter((c) => !nomesAtuais.has(normalizar(c))).slice(0, 5)
 }
 
+function certificadoRelevante(candidato: Candidato, contexto?: ContextoExterno): boolean {
+  const referencias = referenciasDaArea(candidato)
+  return candidato.certificados.some((certificado) =>
+    referencias.some((ref) => normalizar(certificado.titulo).includes(normalizar(ref)))
+      || (contexto?.competenciasPorCertificado?.[certificado.idCertificado]?.length ?? 0) > 0,
+  )
+}
+
+function gerarChecklistPerfil(candidato: Candidato, contexto?: ContextoExterno): ItemChecklistPerfil[] {
+  const area = areaEvidencia(candidato)
+  const objetivoEstagio = candidato.objetivoProfissional.modo === 'definido'
+    && candidato.objetivoProfissional.opcoes.some((opcao) => normalizar(opcao.nivelAlvo ?? '').includes('estagio'))
+  const temFormacao = candidato.escolaridades.length > 0
+  const maiorNivel = inferirMaiorNivelEscolaridade(candidato.escolaridades)
+  const maiorNivelRotulo = rotuloMaiorNivelEscolaridade(maiorNivel)
+  const temCertificadoRelevante = certificadoRelevante(candidato, contexto)
+  const temIdiomaEstrangeiro = candidato.idiomas.some((idioma) => !/portugu[eê]s/i.test(idioma.nome))
+  const githubAplicavel = area === 'tecnologia'
+  const portfolioRecomendado = area === 'tecnologia' || area === 'design'
+  const registroObrigatorio = area === 'saude'
+  const preferida = modalidadePreferidaAtiva(candidato)
+  const aceitas = modalidadesAceitasAtivas(candidato)
+
+  return [
+    {
+      id: 'escolaridade',
+      titulo: 'Escolaridade',
+      importancia: temFormacao ? 'recomendado' : 'opcional',
+      status: temFormacao ? 'atendido' : 'opcional',
+      explicacao: maiorNivel === 'nao_informado'
+        ? 'Não informado; não reduz o score, mas pode limitar a precisão da compatibilidade.'
+        : maiorNivel === 'superior_em_andamento' && objetivoEstagio
+          ? 'Ensino Superior em andamento; adequado para vagas de estágio.'
+          : `${maiorNivelRotulo}; compatível como informação factual do perfil, sem nota parcial de escolaridade.`,
+    },
+    {
+      id: 'certificados',
+      titulo: 'Certificados',
+      importancia: 'opcional',
+      status: temCertificadoRelevante ? 'atendido' : 'opcional',
+      explicacao: temCertificadoRelevante
+        ? 'Certificado relevante aparece como diferencial de aprendizado, sem substituir experiência ou projeto.'
+        : 'Certificados podem fortalecer seu perfil, mas não são obrigatórios para uma boa avaliação.',
+    },
+    {
+      id: 'idiomas',
+      titulo: 'Idiomas',
+      importancia: area === 'tecnologia' || area === 'gestao' ? 'recomendado' : 'opcional',
+      status: temIdiomaEstrangeiro ? 'atendido' : 'opcional',
+      explicacao: temIdiomaEstrangeiro
+        ? 'Idioma informado pode ampliar oportunidades quando a vaga exigir ou valorizar esse requisito.'
+        : 'Ausência de segundo idioma não reduz o score global automaticamente; vagas específicas ainda podem exigir idioma.',
+    },
+    {
+      id: 'curriculo',
+      titulo: 'Currículo',
+      importancia: 'recomendado',
+      status: candidato.curriculo ? 'atendido' : 'opcional',
+      explicacao: candidato.curriculo
+        ? 'Currículo anexado melhora a confiança e permite cruzar dados com o formulário.'
+        : 'O formulário contém dados estruturados suficientes; anexar currículo melhora a análise, mas não zera a dimensão.',
+    },
+    {
+      id: 'linkedin',
+      titulo: 'LinkedIn',
+      importancia: area === 'tecnologia' || area === 'gestao' ? 'recomendado' : 'opcional',
+      status: temLinkedIn(candidato) ? 'atendido' : 'opcional',
+      explicacao: temLinkedIn(candidato)
+        ? 'LinkedIn cadastrado como apoio de apresentação profissional.'
+        : 'Pode ajudar na visibilidade, mas não é tratado como requisito universal.',
+    },
+    {
+      id: 'github',
+      titulo: 'GitHub',
+      importancia: githubAplicavel ? 'recomendado' : 'nao_aplicavel',
+      status: githubAplicavel ? (temGithub(candidato) || contexto?.github?.encontrado ? 'atendido' : 'opcional') : 'nao_aplicavel',
+      explicacao: githubAplicavel
+        ? 'GitHub é recomendado para tecnologia quando há projetos técnicos revisáveis.'
+        : 'Esta evidência não é esperada para sua área e não gera ponto negativo.',
+    },
+    {
+      id: 'portfolio',
+      titulo: 'Portfólio',
+      importancia: portfolioRecomendado ? 'recomendado' : 'opcional',
+      status: temPortfolio(candidato) ? 'atendido' : 'opcional',
+      explicacao: temPortfolio(candidato)
+        ? 'Portfólio reconhecido como evidência pública adequada ao perfil.'
+        : portfolioRecomendado
+          ? `Recomendado para comprovar entregas: ${obterPlataformasEvidencia(candidato)}.`
+          : 'Opcional para esta área, mas pode reforçar cases ou resultados.',
+    },
+    {
+      id: 'registro_profissional',
+      titulo: 'Registro profissional/licença',
+      importancia: registroObrigatorio ? 'obrigatorio' : 'nao_aplicavel',
+      status: registroObrigatorio ? 'pendente' : 'nao_aplicavel',
+      explicacao: registroObrigatorio
+        ? 'Pode ser obrigatório em determinadas vagas de saúde; a exigência continua sendo avaliada na compatibilidade da vaga.'
+        : 'Não aplicável como requisito geral para o objetivo informado.',
+    },
+    {
+      id: 'formacao_complementar',
+      titulo: 'Formação complementar',
+      importancia: 'opcional',
+      status: candidato.certificados.length > 0 ? 'atendido' : 'opcional',
+      explicacao: 'Cursos complementares reforçam aprendizado, mas quantidade de certificados não mede empregabilidade por si só.',
+    },
+    {
+      id: 'projetos_evidencias',
+      titulo: 'Projetos/evidências',
+      importancia: 'recomendado',
+      status: temEvidenciaPublicaAdequada(candidato, contexto?.github) ? 'atendido' : 'opcional',
+      explicacao: temEvidenciaPublicaAdequada(candidato, contexto?.github)
+        ? 'Há evidência prática compatível com a área.'
+        : `Adicionar evidências ajuda recrutadores a avaliar entregas reais: ${obterPlataformasEvidencia(candidato)}.`,
+    },
+    {
+      id: 'modalidade_localizacao',
+      titulo: 'Modalidade/localização',
+      importancia: 'recomendado',
+      status: 'atendido',
+      explicacao: [
+        preferida ? `Modalidade preferida: ${preferida}.` : `Modalidades aceitas: ${aceitas.join(', ') || 'não informadas'}.`,
+        candidato.disponibilidadeMudanca === 'sim'
+          ? 'Disponibilidade para mudança informada.'
+          : candidato.disponibilidadeMudanca === 'depende'
+            ? 'Disponibilidade para mudança depende da oportunidade.'
+            : candidato.disponibilidadeMudanca === 'nao'
+              ? 'Aceita vagas presenciais/híbridas apenas compatíveis com sua cidade.'
+              : 'Disponibilidade para mudança não informada.',
+      ].join(' '),
+    },
+  ]
+}
 function gerarPontosFortes(candidato: Candidato, pontuacao: Pontuacao, contexto?: ContextoExterno): string[] {
   const pontos: string[] = []
-  if (pontuacao.detalhes.experiencia >= 12) {
-    pontos.push('Experiência profissional consistente para o nível pretendido.')
-  } else if (candidatoEmInicioDeCarreira(candidato) && pontuacao.detalhes.experiencia > 0) {
-    pontos.push('Perfil de início de carreira avaliado sem penalização excessiva por ausência de experiência formal.')
+  if (pontuacao.detalhes.competenciasRelevantes.pontos >= 18) {
+    pontos.push('Competências declaradas têm boa relação com o objetivo profissional.')
   }
-  if (pontuacao.detalhes.competencias >= 12) {
-    pontos.push('Boa variedade de competências técnicas e comportamentais cadastradas.')
+  if (pontuacao.detalhes.experienciaEvidencias.pontos >= 14) {
+    pontos.push('Experiências ou evidências práticas sustentam a candidatura sem depender apenas de tempo de carreira.')
+  } else if (candidatoEmInicioDeCarreira(candidato) && pontuacao.detalhes.experienciaEvidencias.pontos >= 10) {
+    pontos.push('Perfil de início de carreira avaliado com peso justo para formação, projetos e evidências práticas.')
   }
-  if (pontuacao.detalhes.idiomas >= 6) {
-    pontos.push('Domínio de idiomas que amplia as oportunidades disponíveis.')
-  }
-  if (pontuacao.detalhes.presencaDigital >= 6) {
-    pontos.push(`Presença digital com evidências públicas adequadas à área (${obterPlataformasEvidencia(candidato)}).`)
+  if (pontuacao.detalhes.projetosEntregas.pontos >= 10) {
+    pontos.push(`Há entregas demonstráveis adequadas à área (${obterPlataformasEvidencia(candidato)}).`)
   }
   const github = contexto?.github
-  if (github?.encontrado && github.totalRepositoriosPublicos > 0) {
-    const linguagensTexto = github.linguagens.slice(0, 3).join(', ')
-    pontos.push(
-      `GitHub ativo com ${github.totalRepositoriosPublicos} repositório(s) público(s)${
-        linguagensTexto ? `, usando principalmente ${linguagensTexto}` : ''
-      }.`,
-    )
-    if (github.temReadmePerfil) {
-      pontos.push('Possui README de perfil no GitHub, o que reforça a apresentação profissional.')
-    }
+  if (areaEvidencia(candidato) === 'tecnologia' && github?.encontrado && github.totalRepositoriosPublicos > 0) {
+    pontos.push(`GitHub com ${github.totalRepositoriosPublicos} repositório(s) público(s) reforça evidências técnicas.`)
   }
-  const totalCompetenciasDeCertificados = Object.values(contexto?.competenciasPorCertificado ?? {}).reduce(
-    (soma, lista) => soma + lista.length,
-    0,
-  )
-  if (totalCompetenciasDeCertificados > 0) {
-    pontos.push('Certificados anexados confirmam, pelo conteúdo do arquivo, competências reais estudadas.')
-  }
-  if (pontuacao.detalhes.certificados >= 4) {
-    pontos.push('Certificados e cursos cadastrados reforçam evidências de aprendizado.')
-  }
-  if (candidato.escolaridades.some((e) => e.status === StatusCurso.CURSANDO)) {
-    pontos.push('Formação acadêmica em andamento alinhada à área de interesse.')
+  if (certificadoRelevante(candidato, contexto)) {
+    pontos.push('Certificado relevante aparece como diferencial, sem substituir experiência ou projetos.')
   }
   if (pontos.length === 0) {
     pontos.push('Perfil em construção, com potencial claro de evolução rápida.')
@@ -229,45 +551,22 @@ function gerarPontosFortes(candidato: Candidato, pontuacao: Pontuacao, contexto?
   return pontos
 }
 
-function gerarPontosMelhorar(pontuacao: Pontuacao, candidato: Candidato, contexto?: ContextoExterno): string[] {
+function gerarPontosMelhorar(pontuacao: Pontuacao, candidato: Candidato): string[] {
   const pontos: string[] = []
-  if (pontuacao.detalhes.experiencia < 8 && !candidatoEmInicioDeCarreira(candidato)) {
-    pontos.push('Experiência prática ainda limitada para as vagas monitoradas.')
+  if (pontuacao.detalhes.competenciasRelevantes.pontos < 12) {
+    pontos.push('Declarar competências mais específicas e relacionadas ao objetivo profissional.')
   }
-  if (pontuacao.detalhes.competencias < 10) {
-    pontos.push('Poucas competências técnicas cadastradas em relação à área escolhida.')
+  if (pontuacao.detalhes.projetosEntregas.pontos < 8) {
+    pontos.push(`Adicionar evidências públicas adequadas à área (${obterPlataformasEvidencia(candidato)}).`)
   }
-  if (pontuacao.detalhes.presencaDigital < 6) {
-    pontos.push('Presença digital incompleta: faltam links profissionais importantes.')
+  if (pontuacao.detalhes.experienciaEvidencias.pontos < 10 && !candidatoEmInicioDeCarreira(candidato)) {
+    pontos.push('Descrever melhor responsabilidades, entregas e resultados das experiências.')
   }
   if (!candidato.curriculo) {
-    pontos.push('Currículo não anexado, o que reduz a qualidade da análise.')
-  }
-  const totalCertificados = candidato.certificados?.length ?? 0
-  if (!temEvidenciaProjetos(candidato)) {
-    pontos.push(`Falta um link de evidência pública da área (${obterPlataformasEvidencia(candidato)}).`)
-  }
-  if (!temEvidenciaProjetos(candidato) && totalCertificados === 0) {
-    pontos.push('Sem projetos ou certificados cadastrados para comprovar aprendizado prático.')
-  }
-  if (pontuacao.detalhes.idiomas < 4) {
-    pontos.push('Pouca pontuação em idiomas, o que limita vagas internacionais.')
-  }
-  const github = contexto?.github
-  if (github && !github.encontrado && candidato.areaInteresse.nome === NomeArea.TECNOLOGIA_DADOS) {
-    pontos.push(github.erro ?? 'Não foi possível confirmar o perfil do GitHub informado.')
-  }
-  if (github?.encontrado && github.totalRepositoriosPublicos === 0) {
-    pontos.push('GitHub encontrado, mas sem repositórios públicos ainda: não há material para um recrutador avaliar.')
-  }
-  if (github?.encontrado && !github.temReadmePerfil) {
-    pontos.push('Seu GitHub não tem um README de perfil; esse é o primeiro contato de quem visita seu usuário.')
-  }
-  if (github?.encontrado && github.diasDesdeUltimaAtividade !== null && github.diasDesdeUltimaAtividade > 180) {
-    pontos.push('GitHub sem atividade recente; repositórios parados há mais de 6 meses passam a impressão de projeto abandonado.')
+    pontos.push('Anexar currículo pode aumentar a confiança da análise, mas não é obrigatório para boa pontuação.')
   }
   if (pontos.length === 0) {
-    pontos.push('Perfil sólido: foco agora deve ser aprofundar especialização.')
+    pontos.push('Perfil sólido: foco agora deve ser aprofundar especialização e evidências de resultado.')
   }
   return pontos
 }
@@ -275,20 +574,16 @@ function gerarPontosMelhorar(pontuacao: Pontuacao, candidato: Candidato, context
 function gerarSugestoesCurriculo(candidato: Candidato, pontuacao: Pontuacao): string[] {
   const sugestoes: string[] = []
   if (!candidato.curriculo) {
-    sugestoes.push('Anexe um currículo em PDF para permitir uma análise mais precisa.')
+    sugestoes.push('Anexe um currículo em PDF quando quiser aumentar a confiança da análise.')
   }
-  if (pontuacao.detalhes.experiencia > 0 && pontuacao.detalhes.experiencia < 12) {
+  if (pontuacao.detalhes.experienciaEvidencias.pontos > 0 && pontuacao.detalhes.experienciaEvidencias.pontos < 14) {
     sugestoes.push('Descreva resultados quantificáveis nas experiências, como redução de tempo, volume atendido ou entregas concluídas.')
   }
-  if (candidato.competencias.length < 6) {
-    sugestoes.push('Liste mais competências técnicas específicas usadas no dia a dia.')
+  if (pontuacao.detalhes.competenciasRelevantes.pontos < 12) {
+    sugestoes.push('Liste competências específicas usadas no dia a dia e conecte-as a experiências ou projetos.')
   }
-  const totalCertificados = candidato.certificados?.length ?? 0
-  if (!temEvidenciaProjetos(candidato) && totalCertificados > 0) {
-    sugestoes.push('Use os certificados mais relevantes como apoio enquanto constrói evidências públicas de projeto.')
-  }
-  if (!temEvidenciaProjetos(candidato)) {
-    sugestoes.push(`Inclua ${obterPlataformasEvidencia(candidato)} para reforçar sua aderência à área.`)
+  if (pontuacao.detalhes.projetosEntregas.pontos < 8) {
+    sugestoes.push(`Inclua ${obterPlataformasEvidencia(candidato)} para reforçar evidências práticas.`)
   }
   sugestoes.push('Mantenha o currículo em uma página, com hierarquia visual clara.')
   return sugestoes
@@ -305,7 +600,7 @@ function gerarResumoProfissional(candidato: Candidato, pontuacao: Pontuacao): st
     return `Perfil de nível ${nivel} em fase de exploração profissional, com base inicial em ${area}. A análise usa dados declarados para sugerir caminhos possíveis, sem definir uma carreira única como certa.`
   }
 
-  return `Perfil de nível ${nivel} voltado para ${opcao?.cargoOuArea ?? area}, atualmente em estágio ${faixa} de empregabilidade. A combinação de experiência, competências e formação indica um caminho claro de evolução com ajustes pontuais no currículo e na presença digital.`
+  return `Perfil de nível ${nivel} voltado para ${opcao?.cargoOuArea ?? area}, atualmente em estágio ${faixa} de empregabilidade. A avaliação separa preparo profissional real de itens opcionais do checklist.`
 }
 
 function gerarPlanoAcao(candidato: Candidato, pontuacao: Pontuacao, contexto?: ContextoExterno): PlanoAcao[] {
@@ -317,16 +612,6 @@ function gerarPlanoAcao(candidato: Candidato, pontuacao: Pontuacao, contexto?: C
     const data = new Date(hoje)
     data.setDate(data.getDate() + dias)
     return data.toISOString().slice(0, 10)
-  }
-
-  if (!candidato.curriculo) {
-    tarefas.push({
-      idPlano: gerarId('plano'),
-      titulo: 'Anexar currículo atualizado',
-      descricao: 'Envie seu currículo em PDF ou DOCX para refinar a análise de empregabilidade.',
-      prioridade: 'Alta',
-      prazo: daqui(3),
-    })
   }
 
   if (objetivo.modo === 'exploracao') {
@@ -347,47 +632,18 @@ function gerarPlanoAcao(candidato: Candidato, pontuacao: Pontuacao, contexto?: C
     })
   }
 
-  if (pontuacao.detalhes.competencias < 12) {
+  if (pontuacao.detalhes.competenciasRelevantes.pontos < 12) {
     const faltantes = identificarCompetenciasFaltantes(candidato, contexto)
     tarefas.push({
       idPlano: gerarId('plano'),
-      titulo: `Estudar ${faltantes[0] ?? 'novas tecnologias da área'}`,
+      titulo: `Estudar ${faltantes[0] ?? 'competências centrais da área'}`,
       descricao: `Aprofunde-se em ${faltantes.slice(0, 2).join(' e ') || 'competências centrais da área'} para se destacar nas vagas monitoradas.`,
       prioridade: 'Alta',
       prazo: daqui(30),
     })
   }
 
-  if (pontuacao.detalhes.presencaDigital < 9) {
-    tarefas.push({
-      idPlano: gerarId('plano'),
-      titulo: 'Melhorar LinkedIn',
-      descricao: 'Atualize resumo, experiências e adicione projetos recentes no LinkedIn.',
-      prioridade: 'Média',
-      prazo: daqui(14),
-    })
-  }
-
-  const github = contexto?.github
-  if (github?.encontrado && !github.temReadmePerfil) {
-    tarefas.push({
-      idPlano: gerarId('plano'),
-      titulo: 'Criar README de perfil no GitHub',
-      descricao: `Crie um repositório público chamado "${github.usuario}" com um README apresentando quem você é e seus principais projetos.`,
-      prioridade: 'Média',
-      prazo: daqui(10),
-    })
-  } else if (github?.encontrado && github.totalRepositoriosPublicos < 3) {
-    tarefas.push({
-      idPlano: gerarId('plano'),
-      titulo: 'Publicar mais projetos no GitHub',
-      descricao: 'Tenha ao menos 3 repositórios públicos completos, com README explicando o problema resolvido.',
-      prioridade: 'Média',
-      prazo: daqui(21),
-    })
-  }
-
-  if (!temEvidenciaProjetos(candidato)) {
+  if (pontuacao.detalhes.projetosEntregas.pontos < 8) {
     tarefas.push({
       idPlano: gerarId('plano'),
       titulo: 'Adicionar evidências públicas da área',
@@ -395,20 +651,22 @@ function gerarPlanoAcao(candidato: Candidato, pontuacao: Pontuacao, contexto?: C
       prioridade: 'Média',
       prazo: daqui(21),
     })
-  } else if (candidato.areaInteresse.nome === NomeArea.TECNOLOGIA_DADOS && (!github || github.totalRepositoriosPublicos >= 3)) {
+  }
+
+  if (pontuacao.detalhes.curriculoApresentacao.pontos < 8) {
     tarefas.push({
       idPlano: gerarId('plano'),
-      titulo: 'Adicionar projetos ao portfólio',
-      descricao: 'Publique 1-2 projetos completos com README detalhado no GitHub.',
+      titulo: 'Organizar apresentação profissional',
+      descricao: 'Complete dados estruturados, revise links e anexe currículo se quiser aumentar a confiança da análise.',
       prioridade: 'Média',
-      prazo: daqui(21),
+      prazo: daqui(14),
     })
   }
 
   tarefas.push({
     idPlano: gerarId('plano'),
     titulo: 'Aprofundar conhecimentos na área de interesse',
-    descricao: 'Escolha um curso ou certificação reconhecida na área e conclua nas próximas semanas.',
+    descricao: 'Escolha um curso, projeto ou entrega prática reconhecida na área e conclua nas próximas semanas.',
     prioridade: 'Baixa',
     prazo: daqui(45),
   })
@@ -425,11 +683,13 @@ export const analysisService = {
     const pontuacao = calcularPontuacao(candidato, contexto)
     return {
       idAnalise: gerarId('analise'),
+      versaoScore: 'v2',
       scoreEmpregabilidade: pontuacao.total,
       pontuacaoDetalhes: pontuacao.detalhes,
+      checklistPerfil: gerarChecklistPerfil(candidato, contexto),
       resumoProfissional: gerarResumoProfissional(candidato, pontuacao),
       pontosFortes: gerarPontosFortes(candidato, pontuacao, contexto),
-      pontosMelhorar: gerarPontosMelhorar(pontuacao, candidato, contexto),
+      pontosMelhorar: gerarPontosMelhorar(pontuacao, candidato),
       competenciasFaltantes: identificarCompetenciasFaltantes(candidato, contexto),
       sugestoesCurriculo: gerarSugestoesCurriculo(candidato, pontuacao),
       dataAnalise: new Date().toISOString(),

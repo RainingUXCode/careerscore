@@ -65,6 +65,8 @@ describe('ReportPage', () => {
     )
 
     expect(html).toContain('Sua análise de carreira')
+    expect(html).toContain('Checklist do perfil')
+    expect(html).toContain('Exportar PDF')
   })
 
   it('diferencia fonte real vazia de fonte não configurada quando mostra vagas de demonstração', () => {

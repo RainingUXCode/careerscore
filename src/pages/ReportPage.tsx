@@ -1,5 +1,5 @@
 ﻿import { useState } from 'react'
-import type { ResultadoProcessamento, SugestaoCarreira } from '../types/models'
+import type { ItemChecklistPerfil, ResultadoProcessamento, SugestaoCarreira } from '../types/models'
 import type { HistoricoScoreItem } from '../services/historyService'
 import { Card } from '../components/ui/Card'
 import { ReportCard } from '../components/report/ReportCard'
@@ -41,6 +41,27 @@ const abas: Array<{ id: AbaRelatorio; label: string }> = [
   { id: 'plano', label: 'Plano de ação' },
   { id: 'curriculo', label: 'Currículo ATS' },
 ]
+
+const rotuloImportanciaChecklist: Record<ItemChecklistPerfil['importancia'], string> = {
+  obrigatorio: 'Obrigatório',
+  recomendado: 'Recomendado',
+  opcional: 'Opcional',
+  nao_aplicavel: 'Não se aplica',
+}
+
+const rotuloStatusChecklist: Record<ItemChecklistPerfil['status'], string> = {
+  atendido: 'Atendido',
+  pendente: 'Pendente',
+  opcional: 'Opcional',
+  nao_aplicavel: 'Não se aplica',
+}
+
+const classeStatusChecklist: Record<ItemChecklistPerfil['status'], string> = {
+  atendido: 'border-[rgba(34,197,94,0.25)] bg-[rgba(34,197,94,0.08)] text-[var(--color-score-high)]',
+  pendente: 'border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.08)] text-[var(--color-score-low)]',
+  opcional: 'border-[rgba(20,184,166,0.25)] bg-[rgba(20,184,166,0.08)] text-[var(--color-primary)]',
+  nao_aplicavel: 'border-[var(--color-line)] bg-[var(--color-well)] text-[var(--color-muted)]',
+}
 
 function carregarConclusoes(idAnalise: string): Record<string, boolean> {
   if (typeof window === 'undefined') return {}
@@ -227,6 +248,30 @@ export function ReportPage({ resultado, historico, onReanalisar, onReiniciar, on
                 <ScoreSimulator candidato={candidato} scoreAtual={analise.scoreEmpregabilidade} />
               </ReportCard>
             </section>
+
+            {analise.checklistPerfil && analise.checklistPerfil.length > 0 && (
+              <ReportCard title="Checklist do perfil">
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {analise.checklistPerfil.map((item) => (
+                    <div key={item.id} className="rounded-lg bg-[var(--color-well)] p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <h3 className="text-sm font-semibold text-[var(--color-ink)]">{item.titulo}</h3>
+                          <p className="mt-1 text-xs text-[var(--color-muted)]">
+                            {rotuloImportanciaChecklist[item.importancia]}
+                          </p>
+                        </div>
+                        <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${classeStatusChecklist[item.status]}`}>
+                          {rotuloStatusChecklist[item.status]}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-sm leading-relaxed text-[var(--color-ink-soft)]">{item.explicacao}</p>
+                      {item.impacto && <p className="mt-2 text-xs text-[var(--color-muted)]">{item.impacto}</p>}
+                    </div>
+                  ))}
+                </div>
+              </ReportCard>
+            )}
 
             {resultado.contextoExterno?.github && (
               <ReportCard title="Análise real do GitHub">

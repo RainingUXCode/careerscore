@@ -6,6 +6,8 @@ import { jobAggregatorService, type OpcoesBuscaVagas, type StatusFonteReal } fro
 import { calcularCompatibilidade } from './compatibilidadeService'
 import { resolverAreaDoCandidato } from './areaBridgeService'
 import { termoBuscaContratoInferido } from './objetivoContratoService'
+import { candidatoElegivelParaPublicoDaVaga } from './publicoVagaService'
+import { modalidadePreferidaAtiva } from './modalidadePreferenciaService'
 
 const DIAS_MAXIMOS_VAGA_RECENTE = 45
 /** Termo único de busca ampla quando não há objetivo definido nem evidência de área. */
@@ -140,7 +142,10 @@ export const vagaRecomendacaoService = {
     const busca = construirBuscaObjetivo(candidato)
     const resultado = await jobAggregatorService.buscar(busca.filtros, opcoes)
 
-    const vagasRecentes = resultado.vagas.filter(vagaRecente)
+    const vagasRecentes = resultado.vagas
+      .filter((vaga) => candidatoElegivelParaPublicoDaVaga(candidato, vaga))
+      .filter(vagaRecente)
+    const modalidadePreferida = modalidadePreferidaAtiva(candidato)
 
     const recomendacoes = vagasRecentes
       .map((vaga) => {
@@ -170,6 +175,9 @@ export const vagaRecomendacaoService = {
       .sort(
         (a, b) =>
           b.compatibilidade.compatibilidadeGeral - a.compatibilidade.compatibilidadeGeral ||
+          Number(b.vaga.modalidade === modalidadePreferida) - Number(a.vaga.modalidade === modalidadePreferida) ||
+          new Date(b.vaga.dataPublicacao ?? 0).getTime() - new Date(a.vaga.dataPublicacao ?? 0).getTime() ||
+          b.compatibilidade.confiabilidade.percentual - a.compatibilidade.confiabilidade.percentual ||
           calcularAderenciaConhecimentos(candidato, b.vaga) - calcularAderenciaConhecimentos(candidato, a.vaga),
       )
 
@@ -180,7 +188,7 @@ export const vagaRecomendacaoService = {
       usouFallback: resultado.usouFallback,
       deCache: resultado.deCache,
       consultadoEm: resultado.consultadoEm,
-      totalVagasEncontradas: resultado.vagas.length,
+      totalVagasEncontradas: resultado.vagas.filter((vaga) => candidatoElegivelParaPublicoDaVaga(candidato, vaga)).length,
       totalVagasRecentes: vagasRecentes.length,
       statusFonteReal: resultado.statusFonteReal,
     }

@@ -1,10 +1,12 @@
 import { Modalidade } from '../types/enums'
+import type { DisponibilidadeMudanca } from '../types/models'
 import type { VagaNormalizada } from '../types/vaga'
 import { normalizarTexto } from '../utils/texto'
 
 export interface LocalizacaoCandidato {
   cidade?: string
   estado?: string
+  disponibilidadeMudanca?: DisponibilidadeMudanca
 }
 
 export interface ResultadoFiltroLocalizacao {
@@ -19,17 +21,6 @@ function textoIgual(a: string | undefined, b: string | undefined): boolean {
   return normalizarTexto(a) === normalizarTexto(b)
 }
 
-/**
- * Avalia se uma vaga deve permanecer na lista, considerando a modalidade —
- * nunca só o estado. Regras:
- *
- * - Remoto: nunca exige cidade/estado do candidato.
- * - Híbrido/Presencial: exige cidade E estado compatíveis — bater só o
- *   estado não é suficiente (duas cidades do mesmo estado não são a mesma
- *   localização para efeito de presencial/híbrido).
- * - Modalidade desconhecida (não informada pela fonte): nunca descarta
- *   automaticamente — mantém, mas sinaliza confiança reduzida.
- */
 export function avaliarLocalizacaoVaga(
   vaga: Pick<VagaNormalizada, 'modalidade' | 'modalidadeInformada' | 'localizacao'>,
   candidato: LocalizacaoCandidato,
@@ -38,19 +29,19 @@ export function avaliarLocalizacaoVaga(
     return {
       manter: true,
       confiancaReduzida: true,
-      motivo: 'Modalidade não informada pela fonte — confirme a localização no anúncio original.',
+      motivo: 'Modalidade não informada pela fonte; confirme a localização no anúncio original.',
     }
   }
 
   if (vaga.modalidade === Modalidade.REMOTO) {
-    return { manter: true, confiancaReduzida: false, motivo: 'Vaga remota — localização do candidato não se aplica.' }
+    return { manter: true, confiancaReduzida: false, motivo: 'Vaga remota; localização do candidato não se aplica.' }
   }
 
   if (!candidato.cidade || !candidato.estado) {
     return {
       manter: true,
       confiancaReduzida: true,
-      motivo: 'Cidade/estado do candidato não preenchidos — não foi possível confirmar compatibilidade geográfica.',
+      motivo: 'Cidade/estado do candidato não preenchidos; não foi possível confirmar compatibilidade geográfica.',
     }
   }
 
@@ -58,7 +49,7 @@ export function avaliarLocalizacaoVaga(
     return {
       manter: true,
       confiancaReduzida: true,
-      motivo: 'A vaga não informou cidade/estado — não foi possível confirmar compatibilidade geográfica.',
+      motivo: 'A vaga não informou cidade/estado; a localização precisa ser confirmada.',
     }
   }
 
@@ -69,9 +60,25 @@ export function avaliarLocalizacaoVaga(
     return { manter: true, confiancaReduzida: false, motivo: 'Cidade e estado compatíveis com a vaga presencial/híbrida.' }
   }
 
+  if (candidato.disponibilidadeMudanca === 'sim') {
+    return {
+      manter: true,
+      confiancaReduzida: false,
+      motivo: 'Vaga em outra cidade mantida porque o candidato informou disponibilidade para mudança.',
+    }
+  }
+
+  if (candidato.disponibilidadeMudanca === 'depende') {
+    return {
+      manter: true,
+      confiancaReduzida: true,
+      motivo: 'Vaga em outra cidade mantida com confiança reduzida porque a mudança depende da oportunidade.',
+    }
+  }
+
   return {
     manter: false,
     confiancaReduzida: false,
-    motivo: 'Localização presencial/híbrida incompatível — cidade ou estado diferentes dos do candidato.',
+    motivo: 'Localização presencial/híbrida incompatível; cidade ou estado diferentes dos do candidato.',
   }
 }

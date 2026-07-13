@@ -79,6 +79,9 @@ export const validationService = {
       opcoes.forEach((opcao, indice) => {
         if (!opcao.cargoOuArea?.trim()) erros[`opcao_${indice}`] = 'Informe o cargo ou área deste objetivo.'
         if (!opcao.modalidadesAceitas?.length) erros[`modalidades_${indice}`] = 'Selecione pelo menos uma modalidade.'
+        if (opcao.modalidadePreferida && !opcao.modalidadesAceitas?.includes(opcao.modalidadePreferida)) {
+          erros[`modalidadePreferida_${indice}`] = 'A modalidade preferida precisa estar entre as modalidades aceitas.'
+        }
         if (contratosVisiveisParaNivel(opcao.nivelAlvo) && !opcao.tiposContratoAceitos?.length) {
           erros[`contratos_${indice}`] = 'Selecione pelo menos um tipo de contrato.'
         }

@@ -83,7 +83,7 @@ describe('motor de compatibilidade multissetorial', () => {
     const resultado = calcularCompatibilidade(candidato, vaga)
     const dimensao = resultado.dimensoes.find((d) => d.chave === 'localizacao')!
     expect(dimensao.nota).toBe(0)
-    expect(resultado.impeditivos.some((i) => i.motivo === 'localizacao_incompativel')).toBe(false)
+    expect(resultado.impeditivos.some((i) => i.motivo === 'localizacao_incompativel')).toBe(true)
   })
 
   it('6. vaga remota com restrição geográfica incompatível é impeditivo', () => {

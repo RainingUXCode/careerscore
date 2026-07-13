@@ -10,6 +10,7 @@ import { Input } from '../ui/Input'
 import { Select } from '../ui/Select'
 import type { ErrosValidacao } from '../../services/validationService'
 import { contratosAoAlterarNivel, contratosVisiveisParaNivel } from '../../services/objetivoContratoService'
+import { ajustarModalidadePreferida } from '../../services/modalidadePreferenciaService'
 
 interface Props {
   candidato: Candidato
@@ -57,6 +58,7 @@ function criarOpcao(indice: number): OpcaoObjetivoProfissional {
     nivelAlvo: 'Indiferente',
     tiposContratoAceitos: ['Indiferente'],
     modalidadesAceitas: [Modalidade.REMOTO, Modalidade.HIBRIDO, Modalidade.PRESENCIAL],
+    modalidadePreferida: undefined,
   }
 }
 
@@ -97,7 +99,11 @@ export function ObjetivoProfissionalSection({ candidato, atualizarCampo, erros }
 
   function alternarModalidadeOpcao(indice: number, modalidade: Modalidade) {
     const opcao = objetivo.opcoes[indice]
-    atualizarOpcao(indice, { modalidadesAceitas: alternarItem(opcao.modalidadesAceitas, modalidade) })
+    const modalidadesAceitas = alternarItem(opcao.modalidadesAceitas, modalidade)
+    atualizarOpcao(indice, {
+      modalidadesAceitas,
+      modalidadePreferida: ajustarModalidadePreferida(modalidadesAceitas, opcao.modalidadePreferida),
+    })
   }
 
   function alternarContratoOpcao(indice: number, contrato: TipoContratoAceito) {
@@ -188,6 +194,18 @@ export function ObjetivoProfissionalSection({ candidato, atualizarCampo, erros }
                 </div>
                 {erros[`modalidades_${indice}`] && <span className="text-xs text-[var(--color-score-low)]">{erros[`modalidades_${indice}`]}</span>}
               </fieldset>
+
+              {opcao.modalidadesAceitas.length > 0 && (
+                <Select
+                  label="Modalidade preferida"
+                  value={opcao.modalidadePreferida ?? ''}
+                  options={[
+                    ...(opcao.modalidadesAceitas.length === 1 ? [] : [{ value: '', label: 'Sem preferência' }]),
+                    ...opcao.modalidadesAceitas.map((modalidade) => ({ value: modalidade, label: modalidade })),
+                  ]}
+                  onChange={(e) => atualizarOpcao(indice, { modalidadePreferida: e.target.value ? e.target.value as Modalidade : undefined })}
+                />
+              )}
 
               {contratosVisiveisParaNivel(opcao.nivelAlvo) && (
                 <fieldset className="grid gap-2 transition-all duration-200 ease-out">

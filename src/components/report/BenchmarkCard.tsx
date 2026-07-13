@@ -22,9 +22,10 @@ export function BenchmarkCard({ analise, area }: BenchmarkCardProps) {
         <Badge tone="primary">percentil {benchmark.percentil}</Badge>
       </div>
       <p className="text-sm leading-relaxed text-[var(--color-ink-soft)]">
-        Em uma referência local para {area}, seu score está acima de {benchmark.percentil}% dos perfis
+        Em uma referência heurística local para {area}, seu score está acima de {benchmark.percentil}% dos perfis
         simulados da área. A categoria mais forte contra essa referência é {benchmark.categoriaMaisForte.label}.
       </p>
+      <p className="mt-2 text-xs text-[var(--color-muted)]">{benchmark.observacao}</p>
       <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
         <div>
           <p className="text-xs text-[var(--color-muted)]">Você</p>

@@ -25,6 +25,7 @@ function montarResumo(historico: HistoricoScoreItem[]): string {
 
 export function ScoreHistoryChart({ historico }: { historico: HistoricoScoreItem[] }) {
   const pontos = historico.slice(-6)
+  const possuiModeloAnterior = historico.some((item) => item.versaoScore && item.versaoScore !== 'v2') || historico.some((item) => !item.versaoScore)
   const largura = 320
   const altura = 120
   const margem = 16
@@ -40,6 +41,11 @@ export function ScoreHistoryChart({ historico }: { historico: HistoricoScoreItem
   return (
     <div>
       <p className="mb-4 text-sm text-[var(--color-ink-soft)]">{montarResumo(historico)}</p>
+      {possuiModeloAnterior && (
+        <p className="mb-3 text-xs text-[var(--color-muted)]">
+          Parte do histórico foi calculada com uma versão anterior do modelo de pontuação.
+        </p>
+      )}
       <svg viewBox={`0 0 ${largura} ${altura}`} className="h-32 w-full overflow-visible">
         <line x1={margem} x2={largura - margem} y1={altura - margem} y2={altura - margem} stroke="var(--color-line)" />
         <line x1={margem} x2={largura - margem} y1={margem} y2={margem} stroke="var(--color-line-soft)" />

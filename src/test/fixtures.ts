@@ -44,6 +44,7 @@ export function criarVagaBase(sobrescreve: Partial<VagaNormalizada> = {}): VagaN
     localizacao: { pais: 'Brasil' },
     modalidadeInformada: true,
     modalidade: Modalidade.REMOTO,
+    publico: 'geral',
     beneficios: [],
     requisitosObrigatorios: [],
     requisitosDesejaveis: [],

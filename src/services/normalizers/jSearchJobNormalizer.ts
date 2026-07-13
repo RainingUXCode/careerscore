@@ -7,6 +7,7 @@ import { classificarTipoRequisito } from './classificacaoRequisitoService'
 import { calcularConfiabilidadeDados } from '../confiabilidadeDadosService'
 import { competenciasReferenciaVagas } from '../../data/competenciasReferenciaVagas'
 import { normalizarTexto } from '../../utils/texto'
+import { classificarPublicoVaga } from '../publicoVagaService'
 
 function paraDataISO(valor?: string): string | undefined {
   if (!valor) return undefined
@@ -98,6 +99,7 @@ export function normalizarVagaJSearch(bruta: JSearchRawJob): VagaNormalizada {
     },
     modalidade: modalidadeInformada ? Modalidade.REMOTO : undefined,
     modalidadeInformada,
+    publico: classificarPublicoVaga(bruta.job_title ?? '', descricao),
 
     salario: salarioInformado
       ? {

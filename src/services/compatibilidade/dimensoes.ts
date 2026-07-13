@@ -11,6 +11,7 @@ import { calcularDuracaoMeses } from '../../utils/formatters'
 import { pesosCompatibilidade } from '../../config/pesosCompatibilidade'
 import { contratosEfetivosDaOpcao } from '../objetivoContratoService'
 import { senioridadeAtualInferida } from '../nivelAtualService'
+import { modalidadePreferidaAtiva, modalidadesAceitasAtivas } from '../modalidadePreferenciaService'
 
 function baseDimensao(chave: string, nome: string, peso: number): Omit<DimensaoCompatibilidade, 'avaliada' | 'confianca' | 'justificativa'> {
   return {
@@ -594,55 +595,103 @@ export function avaliarLocalizacao(
   const mesmoEstado = normalizarTexto(estadoBase) === normalizarTexto(vaga.localizacao.estado ?? '')
   const mesmaCidade = normalizarTexto(cidadeBase) === normalizarTexto(vaga.localizacao.cidade ?? '')
 
-  const nota = mesmaCidade ? 10 : mesmoEstado ? 5 : 0
+  const mesmaLocalizacao = mesmaCidade && mesmoEstado
+  const disponibilidade = candidato.disponibilidadeMudanca ?? 'prefiro_nao_informar'
+
+  if (mesmaLocalizacao) {
+    return {
+      dimensao: {
+        ...baseDimensao(chave, nome, peso),
+        avaliada: true,
+        confianca: 0.9,
+        nota: 10,
+        justificativa: 'Vaga na sua cidade e estado.',
+      },
+    }
+  }
+
+  if (disponibilidade === 'sim') {
+    return {
+      dimensao: {
+        ...baseDimensao(chave, nome, peso),
+        avaliada: true,
+        confianca: 0.75,
+        nota: 7,
+        justificativa: vaga.modalidade === 'Presencial'
+          ? 'Vaga presencial em outra cidade; mantida porque você informou disponibilidade para mudança.'
+          : 'Vaga híbrida em outra cidade; mantida porque você informou disponibilidade para mudança.',
+        requisitosParciais: ['Exige mudança de cidade'],
+      },
+    }
+  }
+
+  if (disponibilidade === 'depende') {
+    return {
+      dimensao: {
+        ...baseDimensao(chave, nome, peso),
+        avaliada: true,
+        confianca: 0.45,
+        nota: 5,
+        justificativa: vaga.modalidade === 'Presencial'
+          ? 'Vaga presencial em outra cidade; mantida com confiança reduzida porque a mudança depende da oportunidade.'
+          : 'Vaga híbrida em outra cidade; mantida com confiança reduzida porque a mudança depende da oportunidade.',
+        requisitosParciais: ['Pode exigir mudança de cidade'],
+      },
+    }
+  }
+
   return {
     dimensao: {
       ...baseDimensao(chave, nome, peso),
       avaliada: true,
       confianca: 0.9,
-      nota,
-      justificativa: mesmaCidade
-        ? 'Vaga na sua cidade.'
-        : mesmoEstado
-          ? 'Vaga no seu estado, mas em outra cidade; avalie o deslocamento.'
-          : `Vaga presencial/híbrida em ${vaga.localizacao.cidade ?? vaga.localizacao.estado}, fora da sua localização.`,
+      nota: 0,
+      justificativa: `Vaga ${vaga.modalidade?.toLowerCase()} em ${vaga.localizacao.cidade ?? vaga.localizacao.estado}, fora da sua cidade/estado.`,
     },
-    impeditivo: nota === 0 && vaga.modalidade === 'Presencial' ? 'Localização presencial incompatível com sua cidade/estado.' : undefined,
+    impeditivo: disponibilidade === 'nao'
+      ? 'Vaga exige atuação em outra cidade e você informou que não tem disponibilidade para mudança.'
+      : 'Vaga exige atuação em outra cidade; disponibilidade para mudança não informada.',
   }
 }
 
 // ---------------------------------------------------------------------------
 // 13. Modalidade (preferência do candidato)
 // ---------------------------------------------------------------------------
-export function avaliarModalidade(candidato: Candidato, vaga: VagaNormalizada): DimensaoCompatibilidade {
+export function avaliarModalidade(
+  candidato: Candidato,
+  vaga: VagaNormalizada,
+): { dimensao: DimensaoCompatibilidade; impeditivo?: string } {
   const chave = 'modalidade'
   const nome = 'Modalidade'
   const peso = pesosCompatibilidade.modalidade
 
   if (!vaga.modalidadeInformada || !vaga.modalidade) {
-    return naoAvaliada(chave, nome, peso, 'A empresa não informou a modalidade de trabalho.')
+    return { dimensao: naoAvaliada(chave, nome, peso, 'A empresa não informou a modalidade de trabalho.') }
   }
 
-  const objetivo = candidato.objetivoProfissional
-  const modalidadesObjetivo = objetivo?.modo === 'definido' ? objetivo.opcoes[0]?.modalidadesAceitas : undefined
-  const preferidas = modalidadesObjetivo?.length
-    ? modalidadesObjetivo
-    : candidato.modalidadesPreferidas?.length
-      ? candidato.modalidadesPreferidas
-      : undefined
-  if (!preferidas) {
-    return naoAvaliada(chave, nome, peso, 'Você ainda não informou preferência de modalidade no seu perfil.')
+  const aceitas = modalidadesAceitasAtivas(candidato)
+  if (!aceitas.length) {
+    return { dimensao: naoAvaliada(chave, nome, peso, 'Você ainda não informou modalidades aceitas no seu perfil.') }
   }
 
-  const atende = preferidas.includes(vaga.modalidade)
+  const atende = aceitas.includes(vaga.modalidade)
+  const preferida = modalidadePreferidaAtiva(candidato)
+  const preferidaAtendida = preferida === vaga.modalidade
   return {
-    ...baseDimensao(chave, nome, peso),
-    avaliada: true,
-    confianca: 0.9,
-    nota: atende ? 10 : 2,
-    justificativa: atende
-      ? `Modalidade "${vaga.modalidade}" está entre suas preferências.`
-      : `Modalidade "${vaga.modalidade}" não está entre suas preferências informadas.`,
+    dimensao: {
+      ...baseDimensao(chave, nome, peso),
+      avaliada: true,
+      confianca: 0.9,
+      nota: atende ? 10 : 0,
+      justificativa: atende
+        ? preferidaAtendida
+          ? `Modalidade "${vaga.modalidade}" é sua modalidade preferida.`
+          : `Modalidade "${vaga.modalidade}" está entre as modalidades aceitas.`
+        : `Modalidade "${vaga.modalidade}" não está entre as modalidades aceitas.`,
+      requisitosAtendidos: atende ? [vaga.modalidade] : [],
+      requisitosAusentes: atende ? [] : [vaga.modalidade],
+    },
+    impeditivo: atende ? undefined : `Modalidade "${vaga.modalidade}" não está entre as modalidades aceitas.`,
   }
 }
 

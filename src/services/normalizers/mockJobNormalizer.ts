@@ -3,6 +3,7 @@ import type { Modalidade } from '../../types/enums'
 import { encontrarAreaPorTexto } from '../areaMatchService'
 import { classificarTipoRequisito } from './classificacaoRequisitoService'
 import { calcularConfiabilidadeDados } from '../confiabilidadeDadosService'
+import { classificarPublicoVaga } from '../publicoVagaService'
 
 /**
  * Formato "bruto" simulado do MockJobProvider — deliberadamente menos
@@ -77,6 +78,7 @@ export function normalizarVagaMock(bruta: VagaMockBruta): VagaNormalizada {
     },
     modalidade: bruta.modalidade,
     modalidadeInformada: Boolean(bruta.modalidade),
+    publico: classificarPublicoVaga(bruta.titulo, bruta.descricao),
 
     salario:
       bruta.salarioMin || bruta.salarioMax

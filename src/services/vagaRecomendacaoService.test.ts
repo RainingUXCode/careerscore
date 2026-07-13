@@ -294,3 +294,70 @@ describe('construirFiltrosBusca', () => {
     expect(resultado.recomendacoes[0].compatibilidade.confiabilidade.resumo).toContain('Busca ampla')
   })
 })
+
+describe('elegibilidade PcD nas recomenda��es', () => {
+  it('vaga exclusiva n�o ocupa faixas para usu�rio ineleg�vel', async () => {
+    vi.spyOn(jobAggregatorService, 'buscar').mockResolvedValue({
+      vagas: [
+        criarVagaBase({ id: 'pcd-1', titulo: 'Vaga exclusiva PcD', publico: 'exclusiva_pcd' }),
+        criarVagaBase({ id: 'geral-1', titulo: 'Vaga geral', publico: 'geral' }),
+      ],
+      fontesComFalha: [],
+      codigosErro: [],
+      usouFallback: false,
+      deCache: false,
+      consultadoEm: new Date().toISOString(),
+      statusFonteReal: 'com_vagas',
+    })
+
+    const resultado = await vagaRecomendacaoService.gerarRecomendacoes(criarCandidatoBase({ preferenciaVagasPcd: 'nao' }))
+
+    expect(resultado.totalVagasEncontradas).toBe(1)
+    expect(resultado.recomendacoes.some((item) => item.vaga.publico === 'exclusiva_pcd')).toBe(false)
+    expect(resultado.recomendacoes.some((item) => item.vaga.publico === 'geral')).toBe(true)
+  })
+})
+describe('ordena��o por modalidade preferida', () => {
+  it('vaga preferida ordena acima de vaga equivalente aceita', async () => {
+    vi.spyOn(jobAggregatorService, 'buscar').mockResolvedValue({
+      vagas: [
+        criarVagaBase({
+          id: 'hib-1',
+          modalidade: Modalidade.HIBRIDO,
+          modalidadeInformada: true,
+          localizacao: { pais: 'Brasil', cidade: 'Jo\u00e3o Pessoa', estado: 'PB' },
+          dataPublicacao: undefined,
+        }),
+        criarVagaBase({
+          id: 'rem-1',
+          modalidade: Modalidade.REMOTO,
+          modalidadeInformada: true,
+          localizacao: { pais: 'Brasil', aceitaCandidatosDe: ['Brasil'] },
+          dataPublicacao: undefined,
+        }),
+      ],
+      fontesComFalha: [],
+      codigosErro: [],
+      usouFallback: false,
+      deCache: false,
+      consultadoEm: new Date().toISOString(),
+      statusFonteReal: 'com_vagas',
+    })
+
+    const resultado = await vagaRecomendacaoService.gerarRecomendacoes(criarCandidatoBase({
+      objetivoProfissional: {
+        modo: 'definido',
+        opcoes: [{
+          id: 'obj-1',
+          cargoOuArea: 'Desenvolvedor',
+          nivelAlvo: 'Júnior',
+          tiposContratoAceitos: ['CLT'],
+          modalidadesAceitas: [Modalidade.REMOTO, Modalidade.HIBRIDO],
+          modalidadePreferida: Modalidade.REMOTO,
+        }],
+      },
+    }))
+
+    expect(resultado.recomendacoes[0].vaga.id).toBe('rem-1')
+  })
+})

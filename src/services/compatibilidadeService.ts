@@ -108,7 +108,7 @@ export function calcularCompatibilidade(candidato: Candidato, vaga: VagaNormaliz
   const dimensaoCertificados = avaliarCertificados(candidato, vaga)
   const { dimensao: dimensaoLicencas, impeditivo: impeditivoLicenca } = avaliarLicencas(candidato, vaga)
   const { dimensao: dimensaoLocalizacao, impeditivo: impeditivoLocalizacao } = avaliarLocalizacao(candidato, vaga)
-  const dimensaoModalidade = avaliarModalidade(candidato, vaga)
+  const { dimensao: dimensaoModalidade, impeditivo: impeditivoModalidade } = avaliarModalidade(candidato, vaga)
   const dimensaoTipoContrato = avaliarTipoContrato(candidato, vaga)
   const dimensaoFaixaSalarial = avaliarFaixaSalarial()
 
@@ -134,6 +134,7 @@ export function calcularCompatibilidade(candidato: Candidato, vaga: VagaNormaliz
     impeditivoIdioma && { descricao: impeditivoIdioma, motivo: 'idioma_obrigatorio_ausente' },
     impeditivoLicenca && { descricao: impeditivoLicenca, motivo: 'licenca_obrigatoria_ausente' },
     impeditivoLocalizacao && { descricao: impeditivoLocalizacao, motivo: 'localizacao_incompativel' },
+    impeditivoModalidade && { descricao: impeditivoModalidade, motivo: 'modalidade_incompativel' },
   ].filter((i): i is ImpeditivoCompatibilidade => Boolean(i))
 
   const compatibilidadeGeral = calcularCompatibilidadeGeral(dimensoes)

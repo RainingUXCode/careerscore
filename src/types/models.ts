@@ -27,6 +27,7 @@ export interface OpcaoObjetivoProfissional {
   nivelAlvo?: NivelSenioridadeAlvo
   tiposContratoAceitos: TipoContratoAceito[]
   modalidadesAceitas: Modalidade[]
+  modalidadePreferida?: Modalidade
 }
 
 export interface PreferenciasExploracao {
@@ -63,8 +64,21 @@ export interface LinkProfissional {
 }
 
 /** Classe Escolaridade */
+export type TipoFormacao =
+  | 'ensino_fundamental'
+  | 'ensino_medio'
+  | 'ensino_tecnico'
+  | 'tecnologo'
+  | 'bacharelado'
+  | 'licenciatura'
+  | 'pos_graduacao'
+  | 'mba'
+  | 'mestrado'
+  | 'doutorado'
+
 export interface Escolaridade {
   idEscolaridade: string
+  tipoFormacao?: TipoFormacao
   instituicao: string
   curso: string
   nivel: string
@@ -119,6 +133,9 @@ export interface Curriculo {
   arquivo?: File
 }
 
+export type PreferenciaVagasPcd = 'sim' | 'nao' | 'prefiro_nao_informar'
+export type DisponibilidadeMudanca = 'sim' | 'nao' | 'depende' | 'prefiro_nao_informar'
+
 /** Classe Candidato */
 export interface Candidato {
   idCandidato: string
@@ -130,6 +147,9 @@ export interface Candidato {
   areaInteresse: AreaInteresse
   objetivoProfissional: ObjetivoProfissional
   modalidadesPreferidas: Modalidade[]
+  modalidadePreferida?: Modalidade
+  disponibilidadeMudanca?: DisponibilidadeMudanca
+  preferenciaVagasPcd?: PreferenciaVagasPcd
   nivelExperiencia?: NivelExperiencia
   escolaridades: Escolaridade[]
   experiencias: ExperienciaProfissional[]
@@ -149,21 +169,50 @@ export interface PlanoAcao {
   prazo: string
 }
 
+export type ChavePontuacaoDetalhes =
+  | 'competenciasRelevantes'
+  | 'experienciaEvidencias'
+  | 'projetosEntregas'
+  | 'consistenciaPerfil'
+  | 'curriculoApresentacao'
+
+export interface CategoriaPontuacaoDetalhe {
+  chave: ChavePontuacaoDetalhes
+  titulo: string
+  pontos: number
+  maximo: number
+  justificativa: string
+  evidencias: string[]
+  comoMelhorar: string[]
+}
+
 export interface PontuacaoDetalhes {
-  experiencia: number
-  competencias: number
-  escolaridade: number
-  idiomas: number
-  presencaDigital: number
-  certificados: number
-  curriculo: number
+  competenciasRelevantes: CategoriaPontuacaoDetalhe
+  experienciaEvidencias: CategoriaPontuacaoDetalhe
+  projetosEntregas: CategoriaPontuacaoDetalhe
+  consistenciaPerfil: CategoriaPontuacaoDetalhe
+  curriculoApresentacao: CategoriaPontuacaoDetalhe
+}
+
+export type StatusChecklistPerfil = 'atendido' | 'pendente' | 'opcional' | 'nao_aplicavel'
+export type ImportanciaChecklistPerfil = 'obrigatorio' | 'recomendado' | 'opcional' | 'nao_aplicavel'
+
+export interface ItemChecklistPerfil {
+  id: string
+  titulo: string
+  importancia: ImportanciaChecklistPerfil
+  status: StatusChecklistPerfil
+  explicacao: string
+  impacto?: string
 }
 
 /** Classe AnalisePerfil */
 export interface AnalisePerfil {
   idAnalise: string
+  versaoScore?: 'v1' | 'v2'
   scoreEmpregabilidade: number
   pontuacaoDetalhes: PontuacaoDetalhes
+  checklistPerfil?: ItemChecklistPerfil[]
   resumoProfissional: string
   pontosFortes: string[]
   pontosMelhorar: string[]

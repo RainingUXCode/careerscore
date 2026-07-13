@@ -82,4 +82,29 @@ describe('avaliarLocalizacaoVaga', () => {
     expect(resultado.manter).toBe(true)
     expect(resultado.confiancaReduzida).toBe(true)
   })
+  it('outra cidade + disponibilidade sim mantém com aviso', () => {
+    const resultado = avaliarLocalizacaoVaga(
+      {
+        modalidade: Modalidade.PRESENCIAL,
+        modalidadeInformada: true,
+        localizacao: { cidade: 'Recife', estado: 'PE', pais: 'Brasil' },
+      },
+      { cidade: 'João Pessoa', estado: 'PB', disponibilidadeMudanca: 'sim' },
+    )
+    expect(resultado.manter).toBe(true)
+    expect(resultado.confiancaReduzida).toBe(false)
+  })
+
+  it('outra cidade + depende mantém com confiança reduzida', () => {
+    const resultado = avaliarLocalizacaoVaga(
+      {
+        modalidade: Modalidade.HIBRIDO,
+        modalidadeInformada: true,
+        localizacao: { cidade: 'Recife', estado: 'PE', pais: 'Brasil' },
+      },
+      { cidade: 'João Pessoa', estado: 'PB', disponibilidadeMudanca: 'depende' },
+    )
+    expect(resultado.manter).toBe(true)
+    expect(resultado.confiancaReduzida).toBe(true)
+  })
 })

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Candidato, Curriculo } from '../../types/models'
-import { FormatoCurriculo, NivelProficiencia, TipoCompetencia } from '../../types/enums'
+import { FormatoCurriculo, TipoCompetencia, TipoLink } from '../../types/enums'
 import { analysisService } from '../../services/analysisService'
 import { gerarId } from '../../utils/id'
 import { Button } from '../ui/Button'
@@ -13,7 +13,7 @@ function temCompetencia(candidato: Candidato, nome: string): boolean {
 
 function montarCandidatoSimulado(
   candidato: Candidato,
-  opcoes: { react: boolean; ingles: boolean; curriculo: boolean; competenciaExtra: string },
+  opcoes: { react: boolean; evidencia: boolean; curriculo: boolean; competenciaExtra: string },
 ): Candidato {
   const competencias = [...candidato.competencias]
   const adicionarCompetencia = (nome: string) => {
@@ -28,18 +28,13 @@ function montarCandidatoSimulado(
   if (opcoes.react) adicionarCompetencia('React')
   adicionarCompetencia(opcoes.competenciaExtra)
 
-  const idiomas = [...candidato.idiomas]
-  if (opcoes.ingles) {
-    const indiceIngles = idiomas.findIndex((idioma) => /ingl|english/i.test(idioma.nome))
-    if (indiceIngles >= 0) {
-      idiomas[indiceIngles] = { ...idiomas[indiceIngles], nivelProficiencia: NivelProficiencia.AVANCADO }
-    } else {
-      idiomas.push({
-        idIdioma: gerarId('sim-idi'),
-        nome: 'Ingles',
-        nivelProficiencia: NivelProficiencia.AVANCADO,
-      })
-    }
+  const links = [...candidato.links]
+  if (opcoes.evidencia && !links.some((link) => /github|portfolio|portf|behance|dribbble/i.test(`${link.tipo} ${link.url}`))) {
+    links.push({
+      idLink: gerarId('sim-link'),
+      tipo: TipoLink.PORTFOLIO,
+      url: 'https://portfolio.example.com',
+    })
   }
 
   const curriculo: Curriculo | undefined = opcoes.curriculo
@@ -51,19 +46,19 @@ function montarCandidatoSimulado(
       }
     : undefined
 
-  return { ...candidato, competencias, idiomas, curriculo }
+  return { ...candidato, competencias, links, curriculo }
 }
 
 export function ScoreSimulator({ candidato, scoreAtual }: { candidato: Candidato; scoreAtual: number }) {
   const [react, setReact] = useState(!temCompetencia(candidato, 'React'))
-  const [ingles, setIngles] = useState(!candidato.idiomas.some((idioma) => /ingl|english/i.test(idioma.nome)))
+  const [evidencia, setEvidencia] = useState(!candidato.links.some((link) => /github|portfolio|portf|behance|dribbble/i.test(`${link.tipo} ${link.url}`)))
   const [curriculo, setCurriculo] = useState(true)
   const [competenciaExtra, setCompetenciaExtra] = useState('')
 
   const scoreSimulado = useMemo(() => {
-    const simulado = montarCandidatoSimulado(candidato, { react, ingles, curriculo, competenciaExtra })
+    const simulado = montarCandidatoSimulado(candidato, { react, evidencia, curriculo, competenciaExtra })
     return analysisService.calcularScore(simulado)
-  }, [candidato, competenciaExtra, curriculo, ingles, react])
+  }, [candidato, competenciaExtra, curriculo, evidencia, react])
 
   const delta = scoreSimulado - scoreAtual
 
@@ -83,12 +78,12 @@ export function ScoreSimulator({ candidato, scoreAtual }: { candidato: Candidato
           React
         </label>
         <label className="flex items-center gap-2">
-          <input type="checkbox" checked={ingles} onChange={(e) => setIngles(e.target.checked)} />
-          Ingles avancado
+          <input type="checkbox" checked={evidencia} onChange={(e) => setEvidencia(e.target.checked)} />
+          Evidência pública de projeto
         </label>
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={curriculo} onChange={(e) => setCurriculo(e.target.checked)} />
-          Curriculo anexado
+          Currículo anexado
         </label>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input

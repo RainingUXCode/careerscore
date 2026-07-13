@@ -6,6 +6,7 @@ import type {
 } from '../types/models'
 import { Modalidade } from '../types/enums'
 import { separarValoresLista } from '../utils/listas'
+import { ajustarModalidadePreferida } from './modalidadePreferenciaService'
 
 export const preferenciasExploracaoPadrao: PreferenciasExploracao = {
   interesses: [],
@@ -37,16 +38,18 @@ function normalizarOpcao(valor: unknown, indice: number): OpcaoObjetivoProfissio
   const dados = valor && typeof valor === 'object' ? (valor as Partial<OpcaoObjetivoProfissional>) : {}
   const cargoOuArea = texto(dados.cargoOuArea)
   if (!cargoOuArea) return undefined
+  const modalidadesAceitas = arrayComFallback(dados.modalidadesAceitas, [
+    Modalidade.REMOTO,
+    Modalidade.HIBRIDO,
+    Modalidade.PRESENCIAL,
+  ])
   return {
     id: texto(dados.id, `objetivo-${indice + 1}`),
     cargoOuArea,
     nivelAlvo: dados.nivelAlvo ?? 'Indiferente',
     tiposContratoAceitos: arrayComFallback(dados.tiposContratoAceitos, ['Indiferente']),
-    modalidadesAceitas: arrayComFallback(dados.modalidadesAceitas, [
-      Modalidade.REMOTO,
-      Modalidade.HIBRIDO,
-      Modalidade.PRESENCIAL,
-    ]),
+    modalidadesAceitas,
+    modalidadePreferida: ajustarModalidadePreferida(modalidadesAceitas, dados.modalidadePreferida),
   }
 }
 
@@ -60,17 +63,19 @@ function normalizarOpcoes(dados: Record<string, unknown>): OpcaoObjetivoProfissi
 
   const cargoLegado = texto(dados.cargoDesejado)
   if (opcoes.length === 0 && cargoLegado) {
+    const modalidadesAceitas = arrayComFallback(dados.modalidadesAceitas, [
+      Modalidade.REMOTO,
+      Modalidade.HIBRIDO,
+      Modalidade.PRESENCIAL,
+    ])
     return [
       {
         id: 'objetivo-1',
         cargoOuArea: cargoLegado,
         nivelAlvo: (dados.nivelAlvo as OpcaoObjetivoProfissional['nivelAlvo']) ?? 'Indiferente',
         tiposContratoAceitos: arrayComFallback(dados.tiposContratoAceitos, ['Indiferente']),
-        modalidadesAceitas: arrayComFallback(dados.modalidadesAceitas, [
-          Modalidade.REMOTO,
-          Modalidade.HIBRIDO,
-          Modalidade.PRESENCIAL,
-        ]),
+        modalidadesAceitas,
+        modalidadePreferida: ajustarModalidadePreferida(modalidadesAceitas, dados.modalidadePreferida as Modalidade | undefined),
       },
     ]
   }

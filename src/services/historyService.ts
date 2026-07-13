@@ -9,6 +9,7 @@ export interface HistoricoScoreItem {
   area: string
   score: number
   dataAnalise: string
+  versaoScore?: 'v1' | 'v2'
 }
 
 function lerHistorico(): HistoricoScoreItem[] {
@@ -49,6 +50,7 @@ export const historyService = {
       area: resultado.candidato.areaInteresse.nome,
       score: resultado.analise.scoreEmpregabilidade,
       dataAnalise: resultado.analise.dataAnalise,
+      versaoScore: resultado.analise.versaoScore ?? 'v2',
     }
 
     const historico = lerHistorico().filter((existente) => existente.idAnalise !== item.idAnalise)

@@ -45,7 +45,8 @@ export function VagaCard({ recomendacao }: { recomendacao: VagaRecomendada }) {
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            {vaga.fonte.tipo === 'demonstracao' && <Badge tone="mid">🧪 Demonstração</Badge>}
+            {vaga.fonte.tipo === 'demonstracao' && <Badge tone="mid">🧪 Demonstração</Badge>}            {vaga.publico === 'exclusiva_pcd' && <Badge tone="primary">Exclusiva para PcD</Badge>}
+
             <Badge tone={tonePorRecomendacao[compatibilidade.recomendacaoCandidatura]}>
               {labelRecomendacao[compatibilidade.recomendacaoCandidatura]}
             </Badge>

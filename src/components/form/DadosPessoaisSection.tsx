@@ -1,5 +1,6 @@
 import type { Candidato } from '../../types/models'
 import { Input } from '../ui/Input'
+import { Select } from '../ui/Select'
 import type { ErrosValidacao } from '../../services/validationService'
 import { formatarTelefone } from '../../utils/formatters'
 
@@ -55,6 +56,18 @@ export function DadosPessoaisSection({ candidato, atualizarCampo, erros }: Props
         value={candidato.estado}
         onChange={(e) => atualizarCampo('estado', e.target.value)}
         error={erros.estado}
+      />
+      <Select
+        id="disponibilidadeMudanca"
+        label="Você tem disponibilidade para mudar de cidade por uma oportunidade?"
+        value={candidato.disponibilidadeMudanca ?? 'prefiro_nao_informar'}
+        onChange={(e) => atualizarCampo('disponibilidadeMudanca', e.target.value as Candidato['disponibilidadeMudanca'])}
+        options={[
+          { value: 'sim', label: 'Sim' },
+          { value: 'nao', label: 'Não' },
+          { value: 'depende', label: 'Depende da oportunidade' },
+          { value: 'prefiro_nao_informar', label: 'Prefiro não informar' },
+        ]}
       />
     </div>
   )

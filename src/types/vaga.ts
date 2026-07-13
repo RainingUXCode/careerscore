@@ -83,6 +83,7 @@ export interface ConfiabilidadeDadosVaga {
 }
 
 export type StatusVaga = 'aberta' | 'encerrada' | 'indisponivel' | 'demonstracao'
+export type PublicoVaga = 'geral' | 'exclusiva_pcd' | 'afirmativa_nao_exclusiva' | 'nao_identificado'
 
 export interface VagaNormalizada {
   id: string
@@ -105,6 +106,7 @@ export interface VagaNormalizada {
   localizacao: LocalizacaoVaga
   modalidade?: Modalidade
   modalidadeInformada: boolean
+  publico: PublicoVaga
 
   salario?: SalarioVaga
   beneficios: string[]

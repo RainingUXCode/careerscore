@@ -13,6 +13,7 @@ import { CertificadosSection } from '../components/form/CertificadosSection'
 import { IdiomasSection } from '../components/form/IdiomasSection'
 import { LinksSection } from '../components/form/LinksSection'
 import { CurriculoSection } from '../components/form/CurriculoSection'
+import { PreferenciasCandidaturaSection } from '../components/form/PreferenciasCandidaturaSection'
 import { Button } from '../components/ui/Button'
 
 interface FormPageProps {
@@ -116,11 +117,16 @@ export function FormPage({ onConcluir }: FormPageProps) {
             </div>
           )}
           {etapaAtual === 1 && (
-            <ObjetivoProfissionalSection
-              candidato={form.candidato}
-              atualizarCampo={form.atualizarCampo}
-              erros={erros}
-            />
+            <div>
+              <ObjetivoProfissionalSection
+                candidato={form.candidato}
+                atualizarCampo={form.atualizarCampo}
+                erros={erros}
+              />
+              <div className="mt-8 border-t border-[var(--color-line)] pt-6">
+                <PreferenciasCandidaturaSection candidato={form.candidato} atualizarCampo={form.atualizarCampo} />
+              </div>
+            </div>
           )}
           {etapaAtual === 2 && (
             <EscolaridadeSection
