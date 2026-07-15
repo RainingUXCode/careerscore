@@ -43,7 +43,7 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-development-on
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', 'true').lower() == 'true'
 
-ALLOWED_HOSTS = [item.strip() for item in os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost,testserver').split(',') if item.strip()]
+ALLOWED_HOSTS = [item.strip() for item in os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost,testserver,backend').split(',') if item.strip()]
 
 
 # Application definition
@@ -98,7 +98,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': os.environ.get('DJANGO_SQLITE_PATH', str(BASE_DIR / 'db.sqlite3')),
     }
 }
 

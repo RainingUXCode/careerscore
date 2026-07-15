@@ -43,6 +43,33 @@ Formato de erro padronizado:
 }
 ```
 
+## Variáveis
+
+- Públicas:
+  - `FRONTEND_URL`
+  - `VITE_API_BASE_URL`
+- Secretas:
+  - `DJANGO_SECRET_KEY`
+  - `GEMINI_API_KEY`
+  - `GEMINI_MODEL`
+  - `JSEARCH_API_KEY`
+
+## Docker
+
+Para subir com Docker:
+
+```bash
+docker compose up --build
+```
+
+Isso inicia:
+
+- backend Django em `http://localhost:8000`
+- frontend em `http://localhost:5173`
+- proxy do frontend para o backend via `/api`
+
+O SQLite fica persistido no volume `backend-data` apontando para `/data/db.sqlite3`.
+
 ## Arquitetura
 
 Os módulos Django separam domínio puro, casos de uso, infraestrutura e

@@ -20,7 +20,8 @@ from shared.presentation.views import HealthView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/v1/health', HealthView.as_view(), name='health'),
+    path('api/v1/health/', HealthView.as_view(), name='health'),
+    path('api/v1/health', HealthView.as_view(), name='health-no-slash'),
     path('api/v1/resumes/', include('apps.resumes.presentation.urls')),
     path('api/v1/jobs/', include('apps.jobs.presentation.urls')),
     path('api/v1/ats/', include('apps.ats.presentation.urls')),
