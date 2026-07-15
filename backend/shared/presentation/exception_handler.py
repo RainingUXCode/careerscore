@@ -6,12 +6,28 @@ from shared.domain.errors import ApplicationError
 
 def api_exception_handler(exc, context):
     if isinstance(exc, ApplicationError):
-        return Response({'erro': exc.code, 'mensagem': exc.message}, status=exc.status_code)
+        payload = {
+            'error': {
+                'code': exc.code,
+                'message': exc.message,
+                'details': exc.details,
+            },
+            'erro': exc.code,
+            'mensagem': exc.message,
+        }
+        return Response(payload, status=exc.status_code)
     response = exception_handler(exc, context)
     if response is not None:
         return response
     return Response(
-        {'erro': 'erro_interno', 'mensagem': 'O servidor não conseguiu processar a solicitação.'},
+        {
+            'error': {
+                'code': 'erro_interno',
+                'message': 'O servidor não conseguiu processar a solicitação.',
+                'details': {},
+            },
+            'erro': 'erro_interno',
+            'mensagem': 'O servidor não conseguiu processar a solicitação.',
+        },
         status=500,
     )
-

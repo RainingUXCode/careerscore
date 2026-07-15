@@ -72,7 +72,7 @@ describe('JSearchJobProvider', () => {
     expect(resultado.sucesso).toBe(false)
     expect(resultado.vagas).toEqual([])
   })
-  it('envia os filtros recebidos para a rota /api/vagas', async () => {
+  it('envia os filtros recebidos para a rota canônica de busca', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ vagas: [], pagina: 1 }),
@@ -90,7 +90,7 @@ describe('JSearchJobProvider', () => {
     })
 
     const url = new URL(fetchMock.mock.calls[0][0], 'https://careerscore.test')
-    expect(url.pathname).toBe('/api/vagas')
+    expect(url.pathname).toBe('/api/v1/jobs/search')
     expect(url.searchParams.get('area')).toBe('tecnologia')
     expect(url.searchParams.get('cargo')).toBe('Desenvolvedor Front-end')
     expect(url.searchParams.get('cidade')).toBe('São Paulo')

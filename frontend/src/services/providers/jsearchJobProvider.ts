@@ -7,6 +7,11 @@ interface RespostaApiVagas {
 }
 
 interface RespostaErroApiVagas {
+  error?: {
+    code?: string
+    message?: string
+    details?: Record<string, unknown>
+  }
   erro: string
   mensagem: string
 }
@@ -44,7 +49,7 @@ export class JSearchJobProvider implements JobProvider {
     if (filtros.estado) params.set('estado', filtros.estado)
     if (filtros.pais) params.set('pais', filtros.pais)
     if (filtros.modalidade) params.set('modalidade', filtros.modalidade)
-    params.set('pagina', '1')
+      params.set('pagina', '1')
 
     // Cache-buster: garante uma URL diferente da última consulta idêntica,
     // para não bater no cache de CDN de "/api/vagas" (que serve por até 24h
@@ -55,11 +60,17 @@ export class JSearchJobProvider implements JobProvider {
     }
 
     try {
-      const resposta = await fetch(`/api/vagas?${params.toString()}`)
+      const resposta = await fetch(`/api/v1/jobs/search?${params.toString()}`)
 
       if (!resposta.ok) {
         const corpoErro: unknown = await resposta.json().catch(() => null)
-        return { vagas: [], sucesso: false, erro: isRespostaErroApiVagas(corpoErro) ? corpoErro.erro : `status_${resposta.status}` }
+        return {
+          vagas: [],
+          sucesso: false,
+          erro: isRespostaErroApiVagas(corpoErro)
+            ? corpoErro.error?.code ?? corpoErro.erro
+            : `status_${resposta.status}`,
+        }
       }
 
       const corpo: unknown = await resposta.json()

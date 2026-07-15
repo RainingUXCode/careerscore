@@ -1,6 +1,7 @@
-import type { ResumeAnalysisResponse } from '../types/api'
+import type { ApiErrorEnvelope, ResumeAnalysisResponse } from '../types/api'
 
 interface ApiErrorBody {
+  error?: ApiErrorEnvelope['error']
   erro?: string
   mensagem?: string
 }
@@ -29,7 +30,7 @@ export const resumeAnalysisApiService = {
     formData.set('resume', arquivo)
     formData.set('consent', String(consentimentoEnvioIa))
 
-    const resposta = await fetch('/api/resume/analyze', {
+    const resposta = await fetch('/api/v1/resumes/analyze', {
       method: 'POST',
       body: formData,
     })
@@ -37,7 +38,10 @@ export const resumeAnalysisApiService = {
     const corpo: unknown = await resposta.json().catch(() => null)
     if (!resposta.ok) {
       const erro = corpo as ApiErrorBody | null
-      throw new ResumeAnalysisApiError(erro?.erro ?? `status_${resposta.status}`, erro?.mensagem ?? 'Falha ao analisar currículo.')
+      throw new ResumeAnalysisApiError(
+        erro?.error?.code ?? erro?.erro ?? `status_${resposta.status}`,
+        erro?.error?.message ?? erro?.mensagem ?? 'Falha ao analisar currículo.',
+      )
     }
 
     if (!isResumeAnalysisResult(corpo)) {

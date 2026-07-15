@@ -30,3 +30,13 @@ export interface ResumeAnalysisResponse {
   jobErrors: string[]
   requiresConfirmation?: boolean
 }
+
+export interface ApiErrorEnvelope {
+  error?: {
+    code?: string
+    message?: string
+    details?: Record<string, unknown>
+  }
+  erro?: string
+  mensagem?: string
+}

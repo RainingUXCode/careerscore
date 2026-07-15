@@ -31,6 +31,18 @@ Aliases compatíveis durante a migração:
 As chaves `GEMINI_API_KEY`, `GEMINI_MODEL` e `JSEARCH_API_KEY` são carregadas
 exclusivamente pelo Django. Nunca use prefixos públicos como `VITE_`.
 
+Formato de erro padronizado:
+
+```json
+{
+  "error": {
+    "code": "gemini_timeout",
+    "message": "A análise demorou mais que o esperado.",
+    "details": {}
+  }
+}
+```
+
 ## Arquitetura
 
 Os módulos Django separam domínio puro, casos de uso, infraestrutura e
