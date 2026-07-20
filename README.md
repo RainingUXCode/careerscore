@@ -70,6 +70,24 @@ Isso inicia:
 
 O SQLite fica persistido no volume `backend-data` apontando para `/data/db.sqlite3`.
 
+## Vercel
+
+O frontend deve ser implantado como projeto separado, com:
+
+- Root Directory: `frontend`
+- Framework Preset: `Vite`
+- Install Command: `npm ci`
+- Build Command: `npm run build`
+- Output Directory: `dist`
+
+Variáveis públicas do frontend:
+
+- `VITE_API_BASE_URL`
+
+Em produção, essa variável deve apontar para a URL pública do backend Django.
+O frontend não deve depender de `localhost`, `backend:8000` nem de rewrite de `/api`
+para um backend local dentro da própria Vercel.
+
 ## Arquitetura
 
 Os módulos Django separam domínio puro, casos de uso, infraestrutura e

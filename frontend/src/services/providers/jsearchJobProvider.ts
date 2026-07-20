@@ -1,6 +1,8 @@
 import type { JobProvider, FiltroBuscaVagas, OpcoesBuscaProvider, ResultadoProviderVagas } from '../../types/jobProvider'
 import type { VagaNormalizada } from '../../types/vaga'
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
+
 interface RespostaApiVagas {
   vagas: VagaNormalizada[]
   pagina: number
@@ -60,7 +62,7 @@ export class JSearchJobProvider implements JobProvider {
     }
 
     try {
-      const resposta = await fetch(`/api/v1/jobs/search?${params.toString()}`)
+      const resposta = await fetch(`${API_BASE_URL}/v1/jobs/search?${params.toString()}`)
 
       if (!resposta.ok) {
         const corpoErro: unknown = await resposta.json().catch(() => null)

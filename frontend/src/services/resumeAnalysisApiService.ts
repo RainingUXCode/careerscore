@@ -6,6 +6,8 @@ interface ApiErrorBody {
   mensagem?: string
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
+
 function isResumeAnalysisResult(valor: unknown): valor is ResumeAnalysisResponse {
   return Boolean(valor)
     && typeof valor === 'object'
@@ -30,7 +32,7 @@ export const resumeAnalysisApiService = {
     formData.set('resume', arquivo)
     formData.set('consent', String(consentimentoEnvioIa))
 
-    const resposta = await fetch('/api/v1/resumes/analyze', {
+    const resposta = await fetch(`${API_BASE_URL}/v1/resumes/analyze`, {
       method: 'POST',
       body: formData,
     })
